@@ -444,6 +444,9 @@ let read_one_param ppf position name v =
             compile_only := true
         end;
     end
+
+  | "lto" -> set "lto" [ cmx_contains_all_code ] v
+
   | _ ->
     if not (List.mem name !can_discard) then begin
       can_discard := name :: !can_discard;
