@@ -443,6 +443,9 @@ let read_one_param ppf position name v =
         let pass = Option.get (P.of_string v)  in
         Clflags.stop_after := Some pass
     end
+
+  | "lto" -> set "lto" [ cmx_contains_all_code ] v
+
   | _ ->
     if not (List.mem name !can_discard) then begin
       can_discard := name :: !can_discard;

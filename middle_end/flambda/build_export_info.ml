@@ -536,7 +536,13 @@ let build_transient ~(backend : (module Backend_intf.S))
   if !Clflags.opaque then
     let compilation_unit = Compilenv.current_unit () in
     let root_symbol = Compilenv.current_unit_symbol () in
-    Export_info.opaque_transient ~root_symbol ~compilation_unit
+    let code =
+      if !Clflags.cmx_contains_all_code then
+        Some program
+      else
+        None
+    in
+    Export_info.opaque_transient ~root_symbol ~compilation_unit ~code
   else
     (* CR-soon pchambart: Should probably use that instead of the ident of
        the module as global identifier.
@@ -717,6 +723,12 @@ let build_transient ~(backend : (module Backend_intf.S))
         (fun key _ -> Symbol.Set.mem key relevant_symbols)
         symbol_id
     in
+    let code =
+      if !Clflags.cmx_contains_all_code then
+        Some program
+      else
+        None
+    in
     Export_info.create_transient ~values
       ~symbol_id
       ~sets_of_closures
@@ -726,3 +738,4 @@ let build_transient ~(backend : (module Backend_intf.S))
       ~relevant_imported_closure_ids
       ~relevant_local_vars_within_closure
       ~relevant_imported_vars_within_closure
+      ~code

@@ -62,6 +62,11 @@ let mk_clambda_checks f =
     field access checks (for debugging the compiler)"
 ;;
 
+let mk_cmx_contains_all_code f =
+  "-lto", Arg.Unit f, " Store all the code in the cmx file \
+    for link time dead code elimination"
+;;
+
 let mk_compact f =
   "-compact", Arg.Unit f, " Optimize code size rather than speed"
 ;;
@@ -1323,6 +1328,7 @@ struct
     mk_ccopt F._ccopt;
     mk_clambda_checks F._clambda_checks;
     mk_classic_inlining F._classic_inlining;
+    mk_cmx_contains_all_code F._cmx_contains_all_code;
     mk_color F._color;
     mk_error_style F._error_style;
     mk_compact F._compact;
@@ -1716,6 +1722,7 @@ module Default = struct
     let _S = set keep_asm_file
     let _clambda_checks () = clambda_checks := true
     let _classic_inlining () = classic_inlining := true
+    let _cmx_contains_all_code = set cmx_contains_all_code
     let _compact = clear optimize_for_speed
     let _dalloc = set dump_regalloc
     let _davail () = dump_avail := true
