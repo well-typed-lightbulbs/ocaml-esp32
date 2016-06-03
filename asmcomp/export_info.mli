@@ -96,6 +96,7 @@ type t = private {
   (* Function parameters known to be invariant (see [Invariant_params])
      indexed by set of closures ID. *)
   recursive : Variable.Set.t Set_of_closures_id.Map.t;
+  code : Flambda.program option;
 }
 
 type transient = private {
@@ -108,6 +109,7 @@ type transient = private {
   relevant_imported_closure_ids : Closure_id.Set.t;
   relevant_local_vars_within_closure  : Var_within_closure.Set.t;
   relevant_imported_vars_within_closure : Var_within_closure.Set.t;
+  code : Flambda.program option;
 }
 
 (** Export information for a compilation unit that exports nothing. *)
@@ -128,6 +130,7 @@ val create
   -> constant_closures:Closure_id.Set.t
   -> invariant_params:Variable.Set.t Variable.Map.t Set_of_closures_id.Map.t
   -> recursive:Variable.Set.t Set_of_closures_id.Map.t
+  -> code:Flambda.program option
   -> t
 
 val create_transient
@@ -140,6 +143,7 @@ val create_transient
   -> relevant_imported_closure_ids : Closure_id.Set.t
   -> relevant_local_vars_within_closure : Var_within_closure.Set.t
   -> relevant_imported_vars_within_closure : Var_within_closure.Set.t
+  -> code:Flambda.program option
   -> transient
 
 (* CR-someday pchambart: Should we separate [t] in 2 types: one created by the

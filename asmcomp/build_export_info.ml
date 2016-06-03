@@ -701,6 +701,12 @@ let build_transient ~(backend : (module Backend_intf.S))
         (fun key _ -> Symbol.Set.mem key relevant_symbols)
         symbol_id
     in
+    let code =
+      if !Clflags.cmx_contains_all_code then
+        Some program
+      else
+        None
+    in
     Export_info.create_transient ~values
       ~symbol_id
       ~sets_of_closures
@@ -710,4 +716,4 @@ let build_transient ~(backend : (module Backend_intf.S))
       ~relevant_imported_closure_ids
       ~relevant_local_vars_within_closure
       ~relevant_imported_vars_within_closure
-
+      ~code
