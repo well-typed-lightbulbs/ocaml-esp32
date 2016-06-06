@@ -82,6 +82,14 @@ type t =
   | Unused_module of string                 (* 60 *)
   | Unboxable_type_in_prim_decl of string   (* 61 *)
   | Constraint_on_gadt                      (* 62 *)
+<<<<<<< HEAD
+=======
+  | Erroneous_printed_signature of string   (* 63 *)
+  | Unsafe_without_parsing                  (* 64 *)
+  | Redefining_unit of string               (* 65 *)
+  | Unused_open_bang of string              (* 66 *)
+  | Module_compiled_without_lto of string   (* 67 *)
+>>>>>>> 5e3ed733b... Propagate code to the cmxa files when linked with -lto
 ;;
 
 val parse_options : bool -> string -> unit;;

@@ -115,6 +115,11 @@ type transient = private {
 (** Export information for a compilation unit that exports nothing. *)
 val empty : t
 
+(** Export information for a compilation unit that exports nothing but
+    the code. Used to build cmxa files with for whole program
+    compilation. *)
+val empty_with_code : code:Flambda.program option -> t
+
 val opaque_transient
   : compilation_unit:Compilation_unit.t
   -> root_symbol:Symbol.t
