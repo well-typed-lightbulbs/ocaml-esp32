@@ -72,6 +72,7 @@ OPTCOMPFLAGS += -function-sections
 endif
 ifeq "$(FLAMBDA)" "true"
 OPTCOMPFLAGS += -O3
+OPTCOMPFLAGS += -lto
 endif
 # By default, request ocamllex to be quiet
 OCAMLLEX_FLAGS ?= -q
