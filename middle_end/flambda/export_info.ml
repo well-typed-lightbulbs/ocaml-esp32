@@ -177,6 +177,8 @@ let empty : t = {
   code = None;
 }
 
+let empty_with_code ~code : t = { empty with code }
+
 let opaque_transient ~compilation_unit ~root_symbol ~code : transient =
   let export_id = Export_id.create compilation_unit in
   let values =

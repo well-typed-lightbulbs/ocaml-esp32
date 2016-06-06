@@ -92,6 +92,7 @@ type t =
   | Redefining_unit of string               (* 65 *)
   | Unused_open_bang of string              (* 66 *)
   | Unused_functor_parameter of string      (* 67 *)
+  | Module_compiled_without_lto of string   (* 68 *)
 ;;
 
 (* If you remove a warning, leave a hole in the numbering.  NEVER change
@@ -170,6 +171,7 @@ let number = function
   | Redefining_unit _ -> 65
   | Unused_open_bang _ -> 66
   | Unused_functor_parameter _ -> 67
+  | Module_compiled_without_lto _ -> 68
 ;;
 
 let last_warning_number = 67
@@ -631,6 +633,11 @@ let message = function
          which shadows the existing one.\n\
          Hint: Did you mean 'type %s = unit'?" name
   | Unused_functor_parameter s -> "unused functor parameter " ^ s ^ "."
+  | Module_compiled_without_lto name ->
+      Printf.sprintf
+        "The required module %s was built without -lto. Linking it in -lto\
+         mode will probably not be possible."
+        name
 ;;
 
 let nerrors = ref 0;;
@@ -775,6 +782,7 @@ let descriptions =
    64, "-unsafe used with a preprocessor returning a syntax tree";
    65, "Type declaration defining a new '()' constructor";
    66, "Unused open! statement";
+   67, "Dependency on a module compiled without lto";
   ]
 ;;
 
