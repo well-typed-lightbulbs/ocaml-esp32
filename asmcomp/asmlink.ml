@@ -348,10 +348,9 @@ let link_whole_program ~backend ppf units_to_link =
   if !Clflags.dump_flambda then
     Format.fprintf ppf "After cleaning:@ %a@."
       Flambda.print_program cleaned_program;
-  Compilenv.reset ~source_provenance:Timings.Startup "_link_";
+  Compilenv.reset "_link_";
   let () =
     Asmgen.compile_implementation_flambda
-      ~source_provenance:Timings.Startup (* TODO change *)
       "_link_" (* TODO change *)
       ~required_globals:Ident.Set.empty
       ~backend
