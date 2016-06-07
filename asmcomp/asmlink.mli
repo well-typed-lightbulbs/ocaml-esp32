@@ -17,7 +17,10 @@
 
 open Format
 
-val link: formatter -> string list -> string -> unit
+val link :
+  ppf_dump:formatter ->
+  backend:(module Backend_intf.S) ->
+  string list -> string -> unit
 
 val link_shared: formatter -> string list -> string -> unit
 
@@ -38,6 +41,7 @@ type error =
   | Linking_error
   | Multiple_definition of string * string * string
   | Missing_cmx of string * string
+  | Module_compiled_without_lto of string
 
 exception Error of error
 

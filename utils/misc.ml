@@ -174,6 +174,23 @@ module Stdlib = struct
         else loop (succ i) in
       loop 0
   end
+
+  module String = struct
+    include String
+    module Set = Set.Make(String)
+    module Map = Map.Make(String)
+    module Tbl = Hashtbl.Make(struct
+      include String
+      let hash = Hashtbl.hash
+    end)
+
+    let for_all f t =
+      let len = String.length t in
+      let rec loop i =
+        i = len || (f t.[i] && loop (i + 1))
+      in
+      loop 0
+end
 end
 
 let may = Stdlib.Option.iter

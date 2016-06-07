@@ -97,6 +97,15 @@ module Stdlib : sig
        Invalid_argument if the two arrays are determined to have
        different lengths. *)
   end
+
+  module String : sig
+    include module type of String
+    module Set : Set.S with type elt = string
+    module Map : Map.S with type key = string
+    module Tbl : Hashtbl.S with type key = string
+
+    val for_all : (char -> bool) -> t -> bool
+end
 end
 
 val find_in_path: string list -> string -> string
