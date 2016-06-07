@@ -18,7 +18,9 @@
 open Misc
 open Format
 
-val link: ppf_dump:formatter -> string list -> string -> unit
+val link
+   : backend:(module Backend_intf.S)
+  -> ppf_dump:formatter -> string list -> string -> unit
 
 val link_shared: ppf_dump:formatter -> string list -> string -> unit
 
@@ -39,6 +41,7 @@ type error =
   | Linking_error of int
   | Multiple_definition of modname * filepath * filepath
   | Missing_cmx of filepath * modname
+  | Module_compiled_without_lto of modname
 
 exception Error of error
 
