@@ -339,6 +339,9 @@ let get_flambda_codes units_to_link =
         code)
     units_to_link
 
+let copy_unit_info unit =
+  { unit with ui_name = unit.Cmx_format.ui_name }
+
 let link_whole_program ~ppf_dump ~backend units_to_link ~crc_interfaces =
   let codes = get_flambda_codes units_to_link in
   let program =
@@ -359,20 +362,23 @@ let link_whole_program ~ppf_dump ~backend units_to_link ~crc_interfaces =
   if !Clflags.dump_flambda then
     Format.fprintf ppf_dump "After cleaning:@ %a@."
       Flambda.print_program cleaned_program;
-  Compilenv.reset "_link_";
-  let () =
-    Asmgen.compile_implementation_flambda
-      "_link_" (* TODO change *)
-      ~required_globals:Ident.Set.empty
-      ~backend
-      ppf_dump
-      cleaned_program
-  in
-  (* TODO: in tmp, and remove after, or do not emit *)
-  let unit_filename = "_link_.cmx" in
-  Compilenv.save_unit_info unit_filename;
-  let single_unit = scan_file "_link_.cmx" [] in
-  [unit_filename], (fun () -> make_startup_file ~ppf_dump ~no_global_map:true single_unit ~crc_interfaces)
+  let unit_prefix = Filename.temp_file "caml_link" "" in
+  Asmgen.compile_implementation_flambda
+    unit_prefix
+    ~required_globals:Ident.Set.empty
+    ~backend
+    ppf_dump
+    cleaned_program;
+  (* This cmx file is never written. *)
+  let unit_filename = unit_prefix ^ ".cmx" in
+  let object_filename = unit_prefix ^ ext_obj in
+  (* cmx information are mutable, we need to copy them
+     to prevent clobering from startup compilation. *)
+  let unit_infos = copy_unit_info (Compilenv.current_unit_infos ()) in
+  let digest = "----------------" in
+  let single_unit = [unit_infos, unit_filename, digest] in
+  [object_filename], [object_filename],
+  (fun () -> make_startup_file ~no_global_map:true ~ppf_dump single_unit  ~crc_interfaces)
 
 (* Main entry point *)
 
@@ -404,19 +410,22 @@ let link ~ppf_dump ~backend objfiles output_name =
       then output_name ^ ".startup" ^ ext_asm
       else Filename.temp_file "camlstartup" ext_asm in
     let startup_obj = Filename.temp_file "camlstartup" ext_obj in
-    let objfiles, make_startup =
+    let removed_objects, objfiles, make_startup =
       if !Clflags.cmx_contains_all_code && Config.flambda then
         link_whole_program ~ppf_dump ~backend units_tolink ~crc_interfaces
       else
-        objfiles, (fun () -> make_startup_file ~no_global_map:false ~ppf_dump units_tolink ~crc_interfaces)
+        [], List.map object_file_name objfiles, (fun () -> make_startup_file ~no_global_map:false ~ppf_dump units_tolink ~crc_interfaces)
     in
     Asmgen.compile_unit output_name
       startup !Clflags.keep_startup_file startup_obj
       make_startup;
     Misc.try_finally
       (fun () ->
-        call_linker (List.map object_file_name objfiles) startup_obj output_name)
-      (fun () -> remove_file startup_obj)
+         call_linker objfiles
+           startup_obj output_name)
+      (fun () ->
+          remove_file startup_obj;
+          List.iter remove_file removed_objects)
   )
 
 (* Error report *)
