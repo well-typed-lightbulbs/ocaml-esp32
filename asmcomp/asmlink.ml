@@ -337,6 +337,9 @@ let link_whole_program ~backend ppf units_to_link =
     Flambda_utils.clear_all_exported_symbols
       (Flambda_utils.concatenate codes)
   in
+  if !Clflags.dump_rawflambda then
+    Format.fprintf ppf "After concatenation:@ %a@."
+      Flambda.print_program program;
   Compilation_unit.(
     set_current
       (create
@@ -345,24 +348,37 @@ let link_whole_program ~backend ppf units_to_link =
   let cleaned_program =
     Remove_unused_program_constructs.remove_unused_program_constructs program
   in
-  if !Clflags.dump_rawflambda then
-    Format.fprintf ppf "After concatenation:@ %a@."
-      Flambda.print_program program;
+  let cleaned_program =
+    (Inline_and_simplify.run ~never_inline:true ~backend ~prefixname:"_link_" ~round:0)
+    cleaned_program
+  in
+  let cleaned_program =
+    (Lift_constants.lift_constants ~backend) cleaned_program
+  in
+  let cleaned_program =
+    Share_constants.share_constants cleaned_program
+  in
+  let cleaned_program =
+    Remove_unused_program_constructs.remove_unused_program_constructs cleaned_program
+  in
   if !Clflags.dump_flambda then
     Format.fprintf ppf "After cleaning:@ %a@."
       Flambda.print_program cleaned_program;
   Compilenv.reset "_link_";
-  let unit_prefix = Filename.temp_file "caml_link" "" in
-  let () =
-    Asmgen.compile_implementation_flambda
-      unit_prefix
-      ~required_globals:Ident.Set.empty
-      ~backend
-      ppf
-      cleaned_program
+  let unit_prefix =
+    if !Clflags.keep_startup_file then
+      "link"
+    else
+      Filename.temp_file "caml_link" ""
   in
-  (* TODO: in tmp, and remove after, or do not emit *)
-  let unit_filename = "_link_.cmx" in
+  Asmgen.compile_implementation_flambda
+    unit_prefix
+    ~required_globals:Ident.Set.empty
+    ~backend
+    ppf
+    cleaned_program;
+  (* This cmx file is never written. *)
+  let unit_filename = unit_prefix ^ ".cmx" in
   let object_filename = unit_prefix ^ ext_obj in
   let unit_infos = copy_unit_info (Compilenv.current_unit_infos ()) in
   let digest = "----------------" in
