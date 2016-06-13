@@ -337,14 +337,20 @@ let link_whole_program ~backend ppf units_to_link =
     Flambda_utils.clear_all_exported_symbols
       (Flambda_utils.concatenate codes)
   in
+  let compilation_unit =
+    Compilation_unit.create
+      (Ident.create_persistent "_link_")
+      (Linkage_name.create "_link_");
+  in
+  Compilation_unit.set_current compilation_unit;
+  let program =
+    Timings.(time (Flambda_pass ("replace_compilation_unit_of_symbols", Link)))
+      (Flambda_utils.replace_compilation_unit_of_symbols compilation_unit)
+      program
+  in
   if !Clflags.dump_rawflambda then
     Format.fprintf ppf "After concatenation:@ %a@."
       Flambda.print_program program;
-  Compilation_unit.(
-    set_current
-      (create
-         (Ident.create_persistent "_link_")
-         (Linkage_name.create "_link_")));
   let cleaned_program =
     Remove_unused_program_constructs.remove_unused_program_constructs program
   in
