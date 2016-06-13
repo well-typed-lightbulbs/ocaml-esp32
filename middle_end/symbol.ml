@@ -87,7 +87,7 @@ let of_variable variable =
   let compilation_unit = Variable.get_compilation_unit variable in
   Variable { variable; compilation_unit }
 
-let import_for_pack ~pack:compilation_unit symbol =
+let import_to_compilation_unit ~unit:compilation_unit symbol =
   match symbol with
   | Linkage l -> Linkage { l with compilation_unit }
   | Variable v -> Variable { v with compilation_unit }
