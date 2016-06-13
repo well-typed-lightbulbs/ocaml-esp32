@@ -21,5 +21,6 @@
 
 val build_transient :
   backend:(module Backend_intf.S) ->
+  opaque:bool ->
   Flambda.program ->
   Export_info.transient

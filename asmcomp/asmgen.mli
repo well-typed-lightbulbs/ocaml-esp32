@@ -18,6 +18,7 @@
 val compile_implementation_flambda :
     ?toplevel:(string -> bool) ->
     string ->
+    opaque:bool ->
     required_globals:Ident.Set.t ->
     backend:(module Backend_intf.S) ->
     Format.formatter -> Flambda.program -> unit

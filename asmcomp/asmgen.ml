@@ -196,9 +196,9 @@ let end_gen_implementation ?toplevel ppf
     );
   Emit.end_assembly ()
 
-let flambda_gen_implementation ?toplevel ~backend ppf
+let flambda_gen_implementation ?toplevel ~backend ~opaque ppf
     (program:Flambda.program) =
-  let export = Build_export_info.build_transient ~backend program in
+  let export = Build_export_info.build_transient ~backend ~opaque program in
   let (clambda, preallocated, constants) =
     Profile.record_call "backend" (fun () ->
       (program, export)
@@ -257,10 +257,11 @@ let compile_implementation_clambda ?toplevel prefixname
     ~required_globals:program.Lambda.required_globals
     ppf lambda_gen_implementation program
 
-let compile_implementation_flambda ?toplevel prefixname
+let compile_implementation_flambda ?toplevel prefixname ~opaque
     ~required_globals ~backend ppf (program:Flambda.program) =
   compile_implementation_gen ?toplevel prefixname
-    ~required_globals ppf (flambda_gen_implementation ~backend) program
+    ~required_globals ppf
+    (flambda_gen_implementation ~backend ~opaque) program
 
 (* Error report *)
 

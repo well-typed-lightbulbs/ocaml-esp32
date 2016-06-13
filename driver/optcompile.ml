@@ -113,7 +113,7 @@ let implementation ~backend ppf sourcefile outputprefix =
                   ~backend
                   ~module_initializer:lam)
             ++ Asmgen.compile_implementation_flambda
-              outputprefix ~required_globals ~backend ppf;
+              outputprefix ~required_globals ~backend ~opaque:!Clflags.opaque ppf;
             Compilenv.save_unit_info cmxfile)
         end
         else begin

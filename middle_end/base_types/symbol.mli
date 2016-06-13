@@ -34,7 +34,7 @@ val of_variable : Variable.t -> t
    Used for global symbols like predefined exceptions *)
 val of_global_linkage : Compilation_unit.t -> Linkage_name.t -> t
 
-val import_for_pack : pack:Compilation_unit.t -> t -> t
+val import_to_compilation_unit : unit:Compilation_unit.t -> t -> t
 
 val compilation_unit : t -> Compilation_unit.t
 val label : t -> Linkage_name.t

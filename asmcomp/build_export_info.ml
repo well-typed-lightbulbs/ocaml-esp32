@@ -515,9 +515,9 @@ let describe_program (env : Env.Global.t) (program : Flambda.program) =
   loop env program.program_body
 
 
-let build_transient ~(backend : (module Backend_intf.S))
+let build_transient ~(backend : (module Backend_intf.S)) ~opaque
       (program : Flambda.program) : Export_info.transient =
-  if !Clflags.opaque then
+  if opaque then
     let compilation_unit = Compilenv.current_unit () in
     let root_symbol = Compilenv.current_unit_symbol () in
     Export_info.opaque_transient ~root_symbol ~compilation_unit
