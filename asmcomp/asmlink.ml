@@ -241,6 +241,8 @@ let make_startup_file ~ppf_dump ~no_global_map ~crc_interfaces units_list =
   if not no_global_map then begin
     let globals_map = make_globals_map units_list ~crc_interfaces in
     compile_phrase (Cmm_helpers.globals_map globals_map);
+  end else begin
+    compile_phrase (Cmm_helpers.globals_map [])
   end;
   compile_phrase(Cmm_helpers.data_segment_table ("_startup" :: name_list));
   if !Clflags.function_sections then
@@ -361,7 +363,7 @@ let link_whole_program ~backend ~ppf_dump ~crc_interfaces units_to_link =
   Compilation_unit.set_current compilation_unit;
   let program = Flambda_utils.replace_compilation_unit_of_symbols compilation_unit program in
   if !Clflags.dump_rawflambda then
-    Format.fprintf ppf "After concatenation:@ %a@."
+    Format.fprintf ppf_dump "After concatenation:@ %a@."
       Flambda.print_program program;
   let cleaned_program =
     Remove_unused_program_constructs.remove_unused_program_constructs program
