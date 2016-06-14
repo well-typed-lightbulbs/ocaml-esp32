@@ -707,24 +707,31 @@ let convert ~whole_program (program, exported_transient) : result =
     }
   in
   let imported_units =
-    let imported = Compilenv.approx_env () in
-    let closures =
-      Set_of_closures_id.Map.fold
-        (fun (_ : Set_of_closures_id.t) fun_decls acc ->
-           Variable.Map.fold
-             (fun var (_ : Simple_value_approx.function_declaration) acc ->
-               let closure_id = Closure_id.wrap var in
-               Closure_id.Set.add closure_id acc)
-             fun_decls.Simple_value_approx.funs
-             acc)
-        imported.sets_of_closures
-        Closure_id.Set.empty
-    in
-    { fun_offset_table = imported.offset_fun;
-      fv_offset_table = imported.offset_fv;
-      constant_closures = imported.constant_closures;
-      closures;
-    }
+    if whole_program then
+      { fun_offset_table = Closure_id.Map.empty;
+        fv_offset_table = Var_within_closure.Map.empty;
+        constant_closures = Closure_id.Set.empty;
+        closures = Closure_id.Set.empty;
+      }
+    else
+      let imported = Compilenv.approx_env () in
+      let closures =
+        Set_of_closures_id.Map.fold
+          (fun (_ : Set_of_closures_id.t) fun_decls acc ->
+             Variable.Map.fold
+               (fun var (_ : Simple_value_approx.function_declaration) acc ->
+                  let closure_id = Closure_id.wrap var in
+                  Closure_id.Set.add closure_id acc)
+               fun_decls.Simple_value_approx.funs
+               acc)
+          imported.sets_of_closures
+          Closure_id.Set.empty
+      in
+      { fun_offset_table = imported.offset_fun;
+        fv_offset_table = imported.offset_fv;
+        constant_closures = imported.constant_closures;
+        closures;
+      }
   in
   let t = { whole_program; current_unit; imported_units; } in
   let expr, structured_constants, preallocated_blocks =
