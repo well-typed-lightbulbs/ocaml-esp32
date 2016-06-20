@@ -305,7 +305,7 @@ let merge (t1 : t) (t2 : t) : t =
         ~print:Variable.Set.print
         ~eq:Variable.Set.equal
         t1.recursive t2.recursive;
-    code = None;
+    code = t1.code;
   }
 
 let find_value eid map =
