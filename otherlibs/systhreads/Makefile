@@ -35,6 +35,11 @@ CAMLOPT=$(BEST_OCAMLOPT) $(LIBS)
 
 MKLIB=$(CAMLRUN) $(ROOTDIR)/tools/ocamlmklib
 COMPFLAGS=-w +33..39 -warn-error A -g -bin-annot -safe-string
+ifeq "$(FLAMBDA)" "true"
+OPTLINKFLAGS=-lto
+else
+OPTLINKFLAGS=
+endif
 
 LIBNAME=threads
 
@@ -85,7 +90,7 @@ endif
 
 # See remark above: force static linking of libthreadsnat.a
 $(LIBNAME).cmxa: $(THREADS_NCOBJS)
-	$(CAMLOPT) -linkall -a -cclib -lthreadsnat $(PTHREAD_CAML_LINK) -o $@ $^
+	$(CAMLOPT) $(OPTLINKFLAGS) -linkall -a -cclib -lthreadsnat $(PTHREAD_CAML_LINK) -o $@ $^
 
 # Note: I removed "-cclib -lunix" from the line above.
 # Indeed, if we link threads.cmxa, then we must also link unix.cmxa,

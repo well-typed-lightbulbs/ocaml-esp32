@@ -31,6 +31,11 @@ OC_CPPFLAGS += -I$(ROOTDIR)/runtime
 # Compilation options
 COMPFLAGS=-absname -w +a-4-9-41-42-44-45-48 -warn-error A -bin-annot -g \
           -safe-string -strict-sequence -strict-formats $(EXTRACAMLFLAGS)
+ifeq "$(FLAMBDA)" "true"
+OPTLINKFLAGS=-lto
+else
+OPTLINKFLAGS=
+endif
 MKLIB=$(CAMLRUN) $(ROOTDIR)/tools/ocamlmklib
 
 # Variables that must be defined by individual libraries:
@@ -71,7 +76,7 @@ endif
 
 $(LIBNAME).cmxa: $(CAMLOBJS_NAT)
 ifeq "$(COBJS)" ""
-	$(CAMLOPT) -o $@ -a -linkall $(CAMLOBJS_NAT) $(LINKOPTS)
+	$(CAMLOPT) -o $@ -a -linkall $(CAMLOBJS_NAT) $(LINKOPTS) $(OPTLINKFLAGS)
 else
 	$(MKLIB) -o $(LIBNAME) -oc $(CLIBNAME) -ocamlopt '$(CAMLOPT)' -linkall \
 	         $(CAMLOBJS_NAT) $(LINKOPTS)
