@@ -346,9 +346,8 @@ let link_whole_program ~backend ppf units_to_link =
   in
   Compilation_unit.set_current compilation_unit;
   let program =
-    Timings.(time (Flambda_pass ("replace_compilation_unit_of_symbols", Link)))
-      (Flambda_utils.replace_compilation_unit_of_symbols compilation_unit)
-      program
+    (Flambda_utils.replace_compilation_unit_of_symbols compilation_unit)
+    program
   in
   if !Clflags.dump_rawflambda then
     Format.fprintf ppf "After concatenation:@ %a@."
