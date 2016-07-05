@@ -42,6 +42,7 @@ and output_c = ref ""       (* Output name for C part of library *)
 and rpath = ref []          (* rpath options *)
 and debug = ref false       (* -g option *)
 and verbose = ref false
+and lto = ref false         (* -lto *)
 
 let starts_with s pref =
   String.length s >= String.length pref &&
@@ -108,6 +109,8 @@ let parse_arguments argv =
           s
       in
       c_libs := s :: !c_libs
+    else if s = "-lto" then
+      lto := true
     else if starts_with s "-L" then
      (c_Lopts := s :: !c_Lopts;
       let l = chop_prefix s "-L" in
@@ -180,6 +183,7 @@ Usage: ocamlmklib [options] <.cmo|.cma|.cmx|.cmxa|.ml|.mli|.o|.a|.obj|.lib|\
 \n  -failsafe      fall back to static linking if DLL construction failed\
 \n  -ldopt <opt>   C option passed to the shared linker only\
 \n  -linkall       Build OCaml archive with link-all behavior\
+\n  -lto           Build with link time optimisation information\
 \n  -l<lib>        Specify a dependent C library\
 \n  -L<dir>        Add <dir> to the path searched for C libraries\
 \n  -ocamlc <cmd>  Use <cmd> in place of \"ocamlc\"\
@@ -306,9 +310,10 @@ let build_libs () =
                   (String.concat " " !caml_libs));
   if !native_objs <> [] then
     scommand
-      (sprintf "%s -a %s %s -o %s.cmxa %s %s -cclib -l%s %s %s %s %s"
+      (sprintf "%s -a %s %s %s -o %s.cmxa %s %s -cclib -l%s %s %s %s %s"
                   (transl_path !ocamlopt)
                   (if !debug then "-g" else "")
+                  (if !lto then "-lto" else "")
                   (String.concat " " !ocamlopt_opts)
                   !output
                   (String.concat " " !caml_opts)
