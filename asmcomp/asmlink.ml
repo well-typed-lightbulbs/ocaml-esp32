@@ -449,7 +449,7 @@ let link ~backend ~ppf_dump objfiles output_name =
     Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;
                                                  (* put user's opts first *)
     let removed_objects, object_files, make_startup =
-      if !Clflags.cmx_contains_all_code && Config.flambda then
+      if !Clflags.whole_program_rebuild && Config.flambda then
         link_whole_program ~backend ~ppf_dump ~crc_interfaces units_tolink
       else
         [],
@@ -460,7 +460,7 @@ let link ~backend ~ppf_dump objfiles output_name =
       ~removed_objects
       ~object_files
       ~output_name
-      ~make_startup
+      ~make_startup  
   )
 
 (* Error report *)
@@ -523,8 +523,8 @@ let report_error ppf = function
         name
   | Module_compiled_without_lto name ->
       fprintf ppf
-        "@[<hov>Modules %s@ was compiled without the `-lto`@ \
-         option. It is needed for linking with the `-lto` option.@]"
+        "@[<hov>Modules %s@ was compiled without the `-lto` option.@ \
+         It is needed for linking with the `-lto` option.@]"
         name
 
 let () =
