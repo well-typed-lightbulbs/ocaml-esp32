@@ -67,6 +67,11 @@ let mk_cmx_contains_all_code f =
     for link time dead code elimination"
 ;;
 
+let mk_whole_program_rebuild f =
+  "-use-lto", Arg.Unit f, " Eliminate dead code at link time. Requires cmx \
+    files to be built using the -lto option"
+;;
+
 let mk_compact f =
   "-compact", Arg.Unit f, " Optimize code size rather than speed"
 ;;
@@ -1068,6 +1073,8 @@ module type Optcommon_options = sig
   val _insn_sched : unit -> unit
   val _no_insn_sched : unit -> unit
   val _linscan : unit -> unit
+  val _cmx_contains_all_code : unit -> unit
+  val _whole_program_rebuild : unit -> unit
   val _no_float_const_prop : unit -> unit
 
   val _clambda_checks : unit -> unit
@@ -1329,6 +1336,7 @@ struct
     mk_clambda_checks F._clambda_checks;
     mk_classic_inlining F._classic_inlining;
     mk_cmx_contains_all_code F._cmx_contains_all_code;
+    mk_whole_program_rebuild F._whole_program_rebuild;
     mk_color F._color;
     mk_error_style F._error_style;
     mk_compact F._compact;
@@ -1723,6 +1731,7 @@ module Default = struct
     let _clambda_checks () = clambda_checks := true
     let _classic_inlining () = classic_inlining := true
     let _cmx_contains_all_code = set cmx_contains_all_code
+    let _whole_program_rebuild = set whole_program_rebuild
     let _compact = clear optimize_for_speed
     let _dalloc = set dump_regalloc
     let _davail () = dump_avail := true

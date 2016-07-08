@@ -445,6 +445,7 @@ let read_one_param ppf position name v =
     end
 
   | "lto" -> set "lto" [ cmx_contains_all_code ] v
+  | "use-lto" -> set "use-lto" [ whole_program_rebuild ] v
 
   | _ ->
     if not (List.mem name !can_discard) then begin
