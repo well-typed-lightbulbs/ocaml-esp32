@@ -192,7 +192,7 @@ module type Optcommon_options = sig
   val _insn_sched : unit -> unit
   val _no_insn_sched : unit -> unit
   val _linscan : unit -> unit
-  val _cmx_contains_all_code : unit -> unit
+  val _cmx_contains_all_code : bool -> unit -> unit
   val _whole_program_rebuild : unit -> unit
   val _no_float_const_prop : unit -> unit
 
