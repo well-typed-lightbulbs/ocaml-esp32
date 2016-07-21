@@ -83,6 +83,8 @@ let flat_float_array = %%FLAT_FLOAT_ARRAY%%
 let function_sections = %%FUNCTION_SECTIONS%%
 let afl_instrument = %%AFL_INSTRUMENT%%
 
+let cmx_contains_all_code = %%CMX_CONTAINS_ALL_CODE%%
+
 let exec_magic_number = "Caml1999X027"
     (* exec_magic_number is duplicated in runtime/caml/exec.h *)
 and cmi_magic_number = "Caml1999I027"
@@ -200,6 +202,7 @@ let configuration_variables =
   p_bool "afl_instrument" afl_instrument;
   p_bool "windows_unicode" windows_unicode;
   p_bool "supports_shared_libraries" supports_shared_libraries;
+  p_bool "cmx_contains_all_code" cmx_contains_all_code;
 
   p "exec_magic_number" exec_magic_number;
   p "cmi_magic_number" cmi_magic_number;

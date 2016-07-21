@@ -758,6 +758,7 @@ function_sections
 flat_float_array
 windows_unicode
 max_testsuite_dir_retries
+lto
 flambda_invariants
 flambda
 libunwind_link_flags
@@ -904,6 +905,7 @@ enable_installing_bytecode_programs
 enable_native_compiler
 enable_flambda
 enable_flambda_invariants
+enable_lto
 with_target_bindir
 enable_reserved_header_bits
 enable_stdlib_manpages
@@ -1579,6 +1581,7 @@ Optional Features:
   --enable-flambda        enable flambda optimizations
   --enable-flambda-invariants
                           enable invariants checks in flambda
+  --enable-lto            enable linking time optimizations
   --enable-reserved-header-bits=BITS
                           reserve BITS (between 0 and 31) bits in block
                           headers for profiling info
@@ -2894,6 +2897,7 @@ VERSION=4.10.1+dev0-2020-02-21
 
 
 
+
 ## Generated files
 
 ac_config_files="$ac_config_files Makefile.common"
@@ -3193,6 +3197,12 @@ fi
 # Check whether --enable-flambda-invariants was given.
 if test "${enable_flambda_invariants+set}" = set; then :
   enableval=$enable_flambda_invariants;
+fi
+
+
+# Check whether --enable-lto was given.
+if test "${enable_lto+set}" = set; then :
+  enableval=$enable_lto;
 fi
 
 
@@ -16701,6 +16711,12 @@ fi
 else
   flambda=false
   flambda_invariants=false
+fi
+
+if test x"$enable_lto" = "xyes"; then :
+  lto=true
+else
+  lto=false
 fi
 
 if test x"$enable_flat_float_array" = "xno"; then :

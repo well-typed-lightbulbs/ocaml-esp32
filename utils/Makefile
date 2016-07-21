@@ -71,6 +71,7 @@ config.ml: config.mlp $(ROOTDIR)/Makefile.config Makefile
 	    $(call SUBST_STRING,BYTECCLIBS) \
 	    $(call SUBST_STRING,CC) \
 	    $(call SUBST_STRING,CCOMPTYPE) \
+			$(call SUBST,CMX_CONTAINS_ALL_CODE) \
 	    $(call SUBST_STRING,OUTPUTOBJ) \
 	    $(call SUBST_STRING,EXT_ASM) \
 	    $(call SUBST_STRING,EXT_DLL) \
