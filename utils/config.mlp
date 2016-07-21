@@ -78,6 +78,7 @@ let default_safe_string = %%DEFAULT_SAFE_STRING%%
 let windows_unicode = %%WINDOWS_UNICODE%% != 0
 
 let flat_float_array = %%FLAT_FLOAT_ARRAY%%
+let cmx_contains_all_code = %%CMX_CONTAINS_ALL_CODE%%
 
 let afl_instrument = %%AFL_INSTRUMENT%%
 
@@ -195,6 +196,7 @@ let print_config oc =
   p_bool "flat_float_array" flat_float_array;
   p_bool "afl_instrument" afl_instrument;
   p_bool "windows_unicode" windows_unicode;
+  p_bool "cmx_contains_all_code" cmx_contains_all_code;
 
   (* print the magic number *)
   p "exec_magic_number" exec_magic_number;
