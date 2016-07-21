@@ -66,6 +66,7 @@ flambda=false
 force_safe_string=false
 default_safe_string=true
 afl_instrument=false
+cmx_contains_all_code=false
 max_testsuite_dir_retries=0
 with_cplugins=false
 with_fpic=false
@@ -248,6 +249,8 @@ while : ; do
         flat_float_array=false;;
     -afl-instrument)
         afl_instrument=true;;
+    -lto|--lto)
+        cmx_contains_all_code=true;;
     *) if echo "$1" | grep -q -e '^--\?[a-zA-Z0-9-]\+='; then
          err "configure expects arguments of the form '-prefix /foo/bar'," \
              "not '-prefix=/foo/bar' (note the '=')."
@@ -2138,6 +2141,7 @@ config WINDOWS_UNICODE "0"
 config AFL_INSTRUMENT "$afl_instrument"
 config MAX_TESTSUITE_DIR_RETRIES "$max_testsuite_dir_retries"
 config FLAT_FLOAT_ARRAY "$flat_float_array"
+config CMX_CONTAINS_ALL_CODE "$cmx_contains_all_code"
 
 
 rm -f tst hasgot.c
