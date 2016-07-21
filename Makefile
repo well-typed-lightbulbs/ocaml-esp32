@@ -343,6 +343,7 @@ utils/config.ml: utils/config.mlp config/Makefile Makefile
 	    $(call SUBST,LIBDIR) \
 	    $(call SUBST,LIBUNWIND_AVAILABLE) \
 	    $(call SUBST,LIBUNWIND_LINK_FLAGS) \
+	    $(call SUBST,LTO) \
 	    $(call SUBST,MKDLL) \
 	    $(call SUBST,MKEXE) \
 	    $(call SUBST,FLEXLINK_LDFLAGS) \
@@ -396,7 +397,7 @@ coldstart:
 	cd boot; $(LN) ../byterun/libcamlrun.$(A) .
 
 .PHONY: coldstart-cross
-coldstart-cross: 
+coldstart-cross:
 	$(MAKE) -C byterun $(BOOT_FLEXLINK_CMD) all
 	$(MAKE) -C stdlib $(BOOT_FLEXLINK_CMD) \
 	  COMPILER="../boot/ocamlc -use-prims ../byterun/primitives" all
@@ -1164,7 +1165,7 @@ otherlibraries: ocamltools
 	done
 
 .PHONY: otherlibrariesopt
-otherlibrariesopt: 
+otherlibrariesopt:
 	for i in $(OTHERLIBRARIES); do \
 	  ($(MAKE) -C otherlibs/$$i allopt) || exit $$?; \
 	done

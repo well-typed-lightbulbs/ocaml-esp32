@@ -212,6 +212,8 @@ while : ; do
         native_compiler=false;;
     -flambda|--flambda)
         flambda=true;;
+    -lto|--lto)
+        lto=true;;
     -with-flambda-invariants|--with-flambda-invariants)
         with_flambda_invariants=true;;
     -with-cplugins|--with-cplugins)
@@ -1246,7 +1248,7 @@ fi
 
 case "$system" in
   mingw) unix_or_win32="win32"; unixlib="win32unix"; graphlib="win32graph";;
-  *) unix_or_win32="unix"; unixlib="unix"; graphlib="graph";; 
+  *) unix_or_win32="unix"; unixlib="unix"; graphlib="graph";;
 esac
 
 config UNIX_OR_WIN32 "$unix_or_win32"
@@ -2162,6 +2164,7 @@ config WINDOWS_UNICODE "0"
 config AFL_INSTRUMENT "$afl_instrument"
 config MAX_TESTSUITE_DIR_RETRIES "$max_testsuite_dir_retries"
 config FLAT_FLOAT_ARRAY "$flat_float_array"
+config LTO "$lto"
 config AWK "awk"
 
 

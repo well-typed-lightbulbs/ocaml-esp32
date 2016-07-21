@@ -130,6 +130,7 @@ let libunwind_available = %%LIBUNWIND_AVAILABLE%%
 let libunwind_link_flags = "%%LIBUNWIND_LINK_FLAGS%%"
 let profinfo = %%WITH_PROFINFO%%
 let profinfo_width = %%PROFINFO_WIDTH%%
+let cmx_contains_all_code = %%LTO%%
 
 let ext_exe = "%%EXE%%"
 let ext_obj = "%%EXT_OBJ%%"
@@ -197,6 +198,7 @@ let print_config oc =
   p_bool "flat_float_array" flat_float_array;
   p_bool "afl_instrument" afl_instrument;
   p_bool "windows_unicode" windows_unicode;
+  p_bool "cmx_contains_all_code" cmx_contains_all_code;
 
   (* print the magic number *)
   p "exec_magic_number" exec_magic_number;
