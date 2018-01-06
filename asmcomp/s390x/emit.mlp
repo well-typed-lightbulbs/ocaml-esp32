@@ -737,7 +737,7 @@ let emit_item = function
       if n < 8 then `	.align	8\n`
                else `	.align	{emit_int n}\n`
 
-let data l =
+let data l _ro =
   emit_string data_space;
   `	.align	8\n`;
   List.iter emit_item l

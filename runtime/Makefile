@@ -178,6 +178,9 @@ endif
 .PHONY: all
 all: $(BYTECODE_STATIC_LIBRARIES) $(BYTECODE_SHARED_LIBRARIES) $(PROGRAMS)
 
+.PHONY: all-cross
+all-cross: $(BYTECODE_STATIC_LIBRARIES) $(BYTECODE_SHARED_LIBRARIES) primitives
+
 .PHONY: allopt
 allopt: $(NATIVE_STATIC_LIBRARIES) $(NATIVE_SHARED_LIBRARIES)
 
@@ -273,19 +276,19 @@ caml/version.h : $(ROOTDIR)/tools/make-version-header.sh $(ROOTDIR)/VERSION
 # Libraries and programs
 
 ocamlrun$(EXE): prims.$(O) libcamlrun.$(A)
-	$(call MAKE_OCAMLRUN,$@,$^ $(LIBS))
+	-cp $(shell which ocamlrun) ocamlrun
 
 libcamlrun.$(A): $(libcamlrun_OBJECTS)
 	$(call MKLIB,$@, $^)
 
 ocamlrund$(EXE): prims.$(O) libcamlrund.$(A)
-	$(MKEXE) $(MKEXEDEBUGFLAG) -o $@ $^ $(LIBS)
+	-cp $(shell which ocamlrund) ocamlrund
 
 libcamlrund.$(A): $(libcamlrund_OBJECTS)
 	$(call MKLIB,$@, $^)
 
 ocamlruni$(EXE): prims.$(O) libcamlruni.$(A)
-	$(MKEXE) -o $@ $^ $(LIBS)
+	-cp $(shell which ocamlruni) ocamlrund
 
 libcamlruni.$(A): $(libcamlruni_OBJECTS)
 	$(call MKLIB,$@, $^)

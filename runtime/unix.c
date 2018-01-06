@@ -27,7 +27,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
-#include <sys/ioctl.h>
 #include <fcntl.h>
 #include "caml/config.h"
 #ifdef SUPPORT_DYNAMIC_LINKING

@@ -45,7 +45,6 @@ let should_emit () =
 let if_emit_do f x = if should_emit () then f x else ()
 let emit_begin_assembly = if_emit_do Emit.begin_assembly
 let emit_end_assembly = if_emit_do Emit.end_assembly
-let emit_data = if_emit_do Emit.data
 let emit_fundecl =
   if_emit_do
     (Profile.record ~accumulate:true "emit" Emit.fundecl)
@@ -109,7 +108,7 @@ let compile_phrase ~ppf_dump p =
   if !dump_cmm then fprintf ppf_dump "%a@." Printcmm.phrase p;
   match p with
   | Cfunction fd -> compile_fundecl ~ppf_dump fd
-  | Cdata dl -> emit_data dl
+  | Cdata (dl, access_mode) -> Emit.data dl access_mode
 
 
 (* For the native toplevel: generates generic functions unless

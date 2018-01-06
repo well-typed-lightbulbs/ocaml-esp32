@@ -39,7 +39,7 @@ generated_files := ocamlyacc$(EXE) $(ocamlyacc_OBJECTS)  version.h
 all: ocamlyacc$(EXE)
 
 ocamlyacc$(EXE): $(ocamlyacc_OBJECTS)
-	$(MKEXE) -o $@ $^ $(EXTRALIBS)
+	cp $(shell which ocamlyacc) ocamlyacc
 
 version.h : $(ROOTDIR)/VERSION
 	echo "#define OCAML_VERSION \"`sed -e 1q $< | tr -d '\r'`\"" > $@

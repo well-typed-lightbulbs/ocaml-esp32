@@ -1389,7 +1389,7 @@ let transl_clambda_constants (constants : Clambda.preallocated_constant list)
   let c = ref cont in
   let emit_clambda_constant symbol global cst =
      let cst = emit_structured_constant (symbol, global) cst [] in
-     c := (Cdata cst) :: !c
+     c := (Cdata (cst, Read_only)) :: !c
   in
   List.iter
     (fun { symbol; exported; definition = cst; provenance = _; } ->
@@ -1409,11 +1409,11 @@ let emit_cmm_data_items_for_constants cont =
             emit_constant_closure (symbol, global) fundecls
               (List.fold_right emit_constant clos_vars []) []
           in
-          c := (Cdata cmm) :: !c
+          c := (Cdata (cmm, Read_only)) :: !c
       | Const_table (global, elems) ->
-          c := (Cdata (emit_constant_table (symbol, global) elems)) :: !c)
+          c := (Cdata ((emit_constant_table (symbol, global) elems), Read_only)) :: !c)
     (Cmmgen_state.get_and_clear_constants ());
-  Cdata (Cmmgen_state.get_and_clear_data_items ()) :: !c
+  Cdata (Cmmgen_state.get_and_clear_data_items (), Read_only) :: !c
 
 let transl_all_functions cont =
   let rec aux already_translated cont translated_functions =

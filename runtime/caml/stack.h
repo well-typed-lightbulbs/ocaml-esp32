@@ -22,6 +22,7 @@
 
 /* Macros to access the stack frame */
 
+
 #ifdef TARGET_i386
 #define Saved_return_address(sp) *((intnat *)((sp) - 4))
 #ifndef SYS_win32
@@ -72,6 +73,10 @@
 
 #ifdef TARGET_riscv
 #define Saved_return_address(sp) *((intnat *)((sp) - 8))
+#endif
+
+#ifdef TARGET_xtensa
+#define Saved_return_address(sp) *((intnat *)((sp) - 4))
 #define Callback_link(sp) ((struct caml_context *)((sp) + 16))
 #endif
 
