@@ -122,15 +122,12 @@ typedef uint64_t uintnat;
 #define ARCH_FLOAT_ENDIANNESS 0x01234567
 #endif
 
-
 /* We use threaded code interpretation if the compiler provides labels
    as first-class values (GCC 2.x). */
 
-#if defined(__GNUC__) && __GNUC__ >= 2 && !defined(DEBUG) \
-    && !defined (SHRINKED_GNUC) && !defined(CAML_JIT)
+#if defined(__GNUC__) && __GNUC__ >= 2 && !defined(DEBUG) && !defined(SHRINKED_GNUC) && !defined(CAML_JIT)
 #define THREADED_CODE
 #endif
-
 
 /* Memory model parameters */
 
@@ -138,24 +135,22 @@ typedef uint64_t uintnat;
    [Page_size] must be a multiple of [sizeof (value)].
    [Page_log] must be be >= 8 and <= 20.
    Do not change the definition of [Page_size]. */
-#define Page_log 12             /* A page is 4 kilobytes. */
+#define Page_log 8 /* A page is 256 bytes. */
 #define Page_size (1 << Page_log)
 
 /* Initial size of stack (bytes). */
-#define Stack_size (4096 * sizeof(value))
+#define Stack_size (256 * sizeof(value))
 
 /* Minimum free size of stack (bytes); below that, it is reallocated. */
-#define Stack_threshold (256 * sizeof(value))
+#define Stack_threshold (32 * sizeof(value))
 
 /* Default maximum size of the stack (words). */
-#define Max_stack_def (1024 * 1024)
-
+#define Max_stack_def (4192)
 
 /* Maximum size of a block allocated in the young generation (words). */
 /* Must be > 4 */
 #define Max_young_wosize 256
-#define Max_young_whsize (Whsize_wosize (Max_young_wosize))
-
+#define Max_young_whsize (Whsize_wosize(Max_young_wosize))
 
 /* Minimum size of the minor zone (words).
    This must be at least [2 * Max_young_whsize]. */
@@ -164,26 +159,24 @@ typedef uint64_t uintnat;
 /* Maximum size of the minor zone (words).
    Must be greater than or equal to [Minor_heap_min].
 */
-#define Minor_heap_max (1 << 28)
+#define Minor_heap_max 8192
 
 /* Default size of the minor zone. (words)  */
-#define Minor_heap_def 262144
-
+#define Minor_heap_def 4096
 
 /* Minimum size increment when growing the heap (words).
    Must be a multiple of [Page_size / sizeof (value)]. */
-#define Heap_chunk_min (15 * Page_size)
+#define Heap_chunk_min Page_size
 
 /* Default size increment when growing the heap.
    If this is <= 1000, it's a percentage of the current heap size.
    If it is > 1000, it's a number of words. */
-#define Heap_chunk_def 15
+#define Heap_chunk_def 10
 
 /* Default initial size of the major heap (words);
    Must be a multiple of [Page_size / sizeof (value)]. */
-#define Init_heap_def (31 * Page_size)
+#define Init_heap_def 8 * Page_size
 /* (about 512 kB for a 32-bit platform, 1 MB for a 64-bit platform.) */
-
 
 /* Default speed setting for the major GC.  The heap will grow until
    the dead objects and the free list represent this percentage of the

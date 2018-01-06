@@ -474,7 +474,7 @@ case "$ccfamily" in
 -fno-builtin-memcmp";
     internal_cflags="$gcc_warnings";;
   gcc-*)
-    common_cflags="-O2 -fno-strict-aliasing -fwrapv";
+    common_cflags="-Os -fno-strict-aliasing -fwrapv -mlongcalls";
     internal_cflags="$gcc_warnings";;
   *)
     common_cflags="-O";;
@@ -499,6 +499,10 @@ case "$cc,$target" in
   *,*-*-haiku*)
     # No -lm library
     mathlib="";;
+  *,*-esp32-*)
+    # hacky
+    common_cppflags="-Os"
+    ldflags="-nostdlib -lgcc -lm";;
   *,*-*-beos*)
     # No -lm library
     mathlib="";;
@@ -591,7 +595,7 @@ case $? in
   0) inf "The C compiler is ISO C99 compliant." ;;
   1) wrn "The C compiler is ANSI / ISO C90 compliant, but not ISO C99" \
          "compliant.";;
-  2) err "The C compiler $cc is not ISO C compliant.\n" \
+  2) wrn "The C compiler $cc is not ISO C compliant.\n" \
          "You need an ISO C99 compiler to build OCaml.";;
   *)
      if $cross_compiler; then
@@ -678,6 +682,10 @@ else
                      echo "#define ARCH_SIXTYFOUR" >> m.h
                      set 4 4 8 2 8
                      arch64=true;;
+    xtensa-esp32-elf) inf "Wow! An esp32!"
+	    echo "#undef ARCH_SIXTYFOUR" >> m.h
+	    set 4 4 4 2 8
+	    arch64=false;;
     *) err "Since datatype sizes cannot be guessed when cross-compiling,\n" \
            "a hardcoded list is used but your architecture isn't known yet.\n" \
            "You need to determine the sizes yourself.\n" \
@@ -1153,7 +1161,7 @@ common_cppflags="$common_cppflags -D_FILE_OFFSET_BITS=64"
 
 if sh ./hasgot sigaction sigprocmask; then
   inf "POSIX signal handling found."
-  echo "#define POSIX_SIGNALS" >> s.h
+  # echo "#define POSIX_SIGNALS" >> s.h
 else
   if sh ./runtest signals.c; then
     inf "Signals have the BSD semantics."
@@ -1229,7 +1237,7 @@ fi
 
 case "$system" in
   mingw) unix_or_win32="win32"; unixlib="win32unix"; graphlib="win32graph";;
-  *) unix_or_win32="unix"; unixlib="unix"; graphlib="graph";;
+  *) unix_or_win32="unix"; unixlib=""; graphlib="graph";; # Hacky esp32
 esac
 
 config UNIX_OR_WIN32 "$unix_or_win32"
@@ -1254,8 +1262,8 @@ esac
 has_sockets=no
 if sh ./hasgot socket socketpair bind listen accept connect; then
   inf "You have BSD sockets."
-  echo "#define HAS_SOCKETS" >> s.h
-  has_sockets=yes
+  # echo "#define HAS_SOCKETS" >> s.h
+  # has_sockets=yes
 elif sh ./hasgot -lnsl -lsocket socket socketpair bind listen accept connect
 then
   inf "You have BSD sockets (with libraries '-lnsl -lsocket')"

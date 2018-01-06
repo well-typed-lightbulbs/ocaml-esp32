@@ -30,14 +30,15 @@
 #include "caml/signals.h"
 #include "caml/stacks.h"
 
-CAMLexport struct longjmp_buffer * caml_external_raise = NULL;
+CAMLexport struct longjmp_buffer *caml_external_raise = NULL;
 value caml_exn_bucket;
 
 CAMLexport void caml_raise(value v)
 {
   Unlock_exn();
   caml_exn_bucket = v;
-  if (caml_external_raise == NULL) caml_fatal_uncaught_exception(v);
+  if (caml_external_raise == NULL)
+    caml_fatal_uncaught_exception(v);
   siglongjmp(caml_external_raise->buf, 1);
 }
 
@@ -48,10 +49,10 @@ CAMLexport void caml_raise_constant(value tag)
 
 CAMLexport void caml_raise_with_arg(value tag, value arg)
 {
-  CAMLparam2 (tag, arg);
-  CAMLlocal1 (bucket);
+  CAMLparam2(tag, arg);
+  CAMLlocal1(bucket);
 
-  bucket = caml_alloc_small (2, 0);
+  bucket = caml_alloc_small(2, 0);
   Field(bucket, 0) = tag;
   Field(bucket, 1) = arg;
   caml_raise(bucket);
@@ -60,15 +61,16 @@ CAMLexport void caml_raise_with_arg(value tag, value arg)
 
 CAMLexport void caml_raise_with_args(value tag, int nargs, value args[])
 {
-  CAMLparam1 (tag);
-  CAMLxparamN (args, nargs);
+  CAMLparam1(tag);
+  CAMLxparamN(args, nargs);
   value bucket;
   int i;
 
   CAMLassert(1 + nargs <= Max_young_wosize);
-  bucket = caml_alloc_small (1 + nargs, 0);
+  bucket = caml_alloc_small(1 + nargs, 0);
   Field(bucket, 0) = tag;
-  for (i = 0; i < nargs; i++) Field(bucket, 1 + i) = args[i];
+  for (i = 0; i < nargs; i++)
+    Field(bucket, 1 + i) = args[i];
   caml_raise(bucket);
   CAMLnoreturn;
 }
@@ -93,7 +95,8 @@ CAMLexport void caml_raise_with_string(value tag, char const *msg)
 */
 static void check_global_data(char const *exception_name)
 {
-  if (caml_global_data == 0) {
+  if (caml_global_data == 0)
+  {
     fprintf(stderr, "Fatal error: exception %s\n", exception_name);
     exit(2);
   }
@@ -101,24 +104,25 @@ static void check_global_data(char const *exception_name)
 
 static void check_global_data_param(char const *exception_name, char const *msg)
 {
-  if (caml_global_data == 0) {
+  if (caml_global_data == 0)
+  {
     fprintf(stderr, "Fatal error: exception %s(\"%s\")\n", exception_name, msg);
     exit(2);
   }
 }
 
-static inline value caml_get_failwith_tag (char const *msg)
+static inline value caml_get_failwith_tag(char const *msg)
 {
   check_global_data_param("Failure", msg);
   return Field(caml_global_data, FAILURE_EXN);
 }
 
-CAMLexport void caml_failwith (char const *msg)
+CAMLexport void caml_failwith(char const *msg)
 {
   caml_raise_with_string(caml_get_failwith_tag(msg), msg);
 }
 
-CAMLexport void caml_failwith_value (value msg)
+CAMLexport void caml_failwith_value(value msg)
 {
   CAMLparam1(msg);
   value tag = caml_get_failwith_tag(String_val(msg));
@@ -126,18 +130,18 @@ CAMLexport void caml_failwith_value (value msg)
   CAMLnoreturn;
 }
 
-static inline value caml_get_invalid_argument_tag (char const *msg)
+static inline value caml_get_invalid_argument_tag(char const *msg)
 {
   check_global_data_param("Invalid_argument", msg);
   return Field(caml_global_data, INVALID_EXN);
 }
 
-CAMLexport void caml_invalid_argument (char const *msg)
+CAMLexport void caml_invalid_argument(char const *msg)
 {
   caml_raise_with_string(caml_get_invalid_argument_tag(msg), msg);
 }
 
-CAMLexport void caml_invalid_argument_value (value msg)
+CAMLexport void caml_invalid_argument_value(value msg)
 {
   CAMLparam1(msg);
   value tag = caml_get_invalid_argument_tag(String_val(msg));
@@ -152,6 +156,7 @@ CAMLexport void caml_array_bound_error(void)
 
 CAMLexport void caml_raise_out_of_memory(void)
 {
+  abort();
   check_global_data("Out_of_memory");
   caml_raise_constant(Field(caml_global_data, OUT_OF_MEMORY_EXN));
 }
@@ -192,13 +197,13 @@ CAMLexport void caml_raise_sys_blocked_io(void)
   caml_raise_constant(Field(caml_global_data, SYS_BLOCKED_IO));
 }
 
-int caml_is_special_exception(value exn) {
+int caml_is_special_exception(value exn)
+{
   /* this function is only used in caml_format_exception to produce
      a more readable textual representation of some exceptions. It is
      better to fall back to the general, less readable representation
      than to abort with a fatal error as above. */
-  if (caml_global_data == 0) return 0;
-  return exn == Field(caml_global_data, MATCH_FAILURE_EXN)
-    || exn == Field(caml_global_data, ASSERT_FAILURE_EXN)
-    || exn == Field(caml_global_data, UNDEFINED_RECURSIVE_MODULE_EXN);
+  if (caml_global_data == 0)
+    return 0;
+  return exn == Field(caml_global_data, MATCH_FAILURE_EXN) || exn == Field(caml_global_data, ASSERT_FAILURE_EXN) || exn == Field(caml_global_data, UNDEFINED_RECURSIVE_MODULE_EXN);
 }
