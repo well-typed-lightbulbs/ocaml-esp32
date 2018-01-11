@@ -916,7 +916,6 @@ CAMLexport caml_stat_block caml_stat_alloc_noexc(asize_t sz)
 /* [sz] is a number of bytes */
 CAMLexport caml_stat_block caml_stat_alloc(asize_t sz)
 {
-  printf("allocating: %d\n", sz);
   void *result = caml_stat_alloc_noexc(sz);
   /* malloc() may return NULL if size is 0 */
   if ((result == NULL) && (sz != 0))
