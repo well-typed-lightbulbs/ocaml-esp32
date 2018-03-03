@@ -65,124 +65,20 @@ void caml_load_code(int fd, asize_t len)
   caml_init_code_fragments();
   /* Prepare the code for execution */
 #ifdef ARCH_BIG_ENDIAN
-  caml_fixup_endianness(caml_start_code, caml_code_size);
+#error "Big endian"
 #endif
   if (caml_debugger_in_use) {
     len /= sizeof(opcode_t);
     caml_saved_code = (unsigned char *) caml_stat_alloc(len);
     for (i = 0; i < len; i++) caml_saved_code[i] = caml_start_code[i];
   }
-#ifdef THREADED_CODE
-  /* Better to thread now than at the beginning of [caml_interprete],
-     since the debugger interface needs to perform SET_EVENT requests
-     on the code. */
-  caml_thread_code(caml_start_code, caml_code_size);
-#endif
 }
 
-/* This code is needed only if the processor is big endian */
 
-#ifdef ARCH_BIG_ENDIAN
-
-void caml_fixup_endianness(code_t code, asize_t len)
-{
-  code_t p;
-  len /= sizeof(opcode_t);
-  for (p = code; p < code + len; p++) {
-    Reverse_32(p, p);
-  }
-}
-
-#endif
-
-/* This code is needed only if we're using threaded code */
-
-#ifdef THREADED_CODE
-
-char ** caml_instr_table;
-char * caml_instr_base;
-
-static int* opcode_nargs = NULL;
-int* caml_init_opcode_nargs(void)
-{
-  if( opcode_nargs == NULL ){
-    int* l = (int*)caml_stat_alloc(sizeof(int) * FIRST_UNIMPLEMENTED_OP);
-    int i;
-
-    for (i = 0; i < FIRST_UNIMPLEMENTED_OP; i++) {
-      l [i] = 0;
-    }
-    /* Instructions with one operand */
-    l[PUSHACC] = l[ACC] = l[POP] = l[ASSIGN] =
-      l[PUSHENVACC] = l[ENVACC] = l[PUSH_RETADDR] = l[APPLY] =
-      l[APPTERM1] = l[APPTERM2] = l[APPTERM3] = l[RETURN] =
-      l[GRAB] = l[PUSHGETGLOBAL] = l[GETGLOBAL] = l[SETGLOBAL] =
-      l[PUSHATOM] = l[ATOM] = l[MAKEBLOCK1] = l[MAKEBLOCK2] =
-      l[MAKEBLOCK3] = l[MAKEFLOATBLOCK] = l[GETFIELD] =
-      l[GETFLOATFIELD] = l[SETFIELD] = l[SETFLOATFIELD] =
-      l[BRANCH] = l[BRANCHIF] = l[BRANCHIFNOT] = l[PUSHTRAP] =
-      l[C_CALL1] = l[C_CALL2] = l[C_CALL3] = l[C_CALL4] = l[C_CALL5] =
-      l[CONSTINT] = l[PUSHCONSTINT] = l[OFFSETINT] =
-      l[OFFSETREF] = l[OFFSETCLOSURE] = l[PUSHOFFSETCLOSURE] = 1;
-
-    /* Instructions with two operands */
-    l[APPTERM] = l[CLOSURE] = l[PUSHGETGLOBALFIELD] =
-      l[GETGLOBALFIELD] = l[MAKEBLOCK] = l[C_CALLN] =
-      l[BEQ] = l[BNEQ] = l[BLTINT] = l[BLEINT] = l[BGTINT] = l[BGEINT] =
-      l[BULTINT] = l[BUGEINT] = l[GETPUBMET] = 2;
-
-    opcode_nargs = l;
-  }
-  return opcode_nargs;
-}
-
-void caml_thread_code (code_t code, asize_t len)
-{
-  code_t p;
-  int* l = caml_init_opcode_nargs();
-  len /= sizeof(opcode_t);
-  for (p = code; p < code + len; /*nothing*/) {
-    opcode_t instr = *p;
-    if (instr < 0 || instr >= FIRST_UNIMPLEMENTED_OP){
-      /* FIXME -- should Assert(false) ?
-      caml_fatal_error_arg ("Fatal error in fix_code: bad opcode (%lx)\n",
-                            (char *)(long)instr);
-      */
-      instr = STOP;
-    }
-    *p++ = (opcode_t)(caml_instr_table[instr] - caml_instr_base);
-    if (instr == SWITCH) {
-      uint32_t sizes = *p++;
-      uint32_t const_size = sizes & 0xFFFF;
-      uint32_t block_size = sizes >> 16;
-      p += const_size + block_size;
-    } else if (instr == CLOSUREREC) {
-      uint32_t nfuncs = *p++;
-      p++;                      /* skip nvars */
-      p += nfuncs;
-    } else {
-      p += l[instr];
-    }
-  }
-  CAMLassert(p == code + len);
-}
-
-#else
 
 int* caml_init_opcode_nargs()
 {
   return NULL;
-}
-
-#endif /* THREADED_CODE */
-
-void caml_set_instruction(code_t pos, opcode_t instr)
-{
-#ifdef THREADED_CODE
-  *pos = (opcode_t)(caml_instr_table[instr] - caml_instr_base);
-#else
-  *pos = instr;
-#endif
 }
 
 int caml_is_instruction(opcode_t instr1, opcode_t instr2)
