@@ -88,6 +88,7 @@ again:
 #endif
     caml_enter_blocking_section();
     retcode = write(fd, buf, n);
+      printf("Caml write fd. Retcode is %d\n", retcode);
     caml_leave_blocking_section();
 #if defined(NATIVE_CODE) && defined(WITH_SPACETIME)
   }
