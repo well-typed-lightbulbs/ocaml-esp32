@@ -212,7 +212,6 @@ CAMLexport int caml_putblock(struct channel *channel, char *p, intnat len)
   free = channel->end - channel->curr;
   if (n < free)
   {
-    printf("Putblock %d/%d:\n", n, free);
     /* Write request small enough to fit in buffer: transfer to buffer. */
     memmove(channel->curr, p, n);
     channel->curr += n;
@@ -220,7 +219,6 @@ CAMLexport int caml_putblock(struct channel *channel, char *p, intnat len)
   }
   else
   {
-    printf("Putblock: buffer full\n");
     /* Write request overflows buffer (or just fills it up): transfer whatever
        fits to buffer and write the buffer */
     memmove(channel->curr, p, free);
