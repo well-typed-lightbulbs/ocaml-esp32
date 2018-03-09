@@ -323,7 +323,6 @@
   #define CONTEXT_SP (_UC_MACHINE_SP(context))
   #define CONTEXT_FAULTING_ADDRESS ((char *) info->si_addr)
 
-
 /****************** PowerPC, other BSDs */
 
 #elif defined(TARGET_power) && \
@@ -363,7 +362,7 @@
 /******************** Default */
 
 #else
-
+  #warning "TO CHECK"
   #define DECLARE_SIGNAL_HANDLER(name) \
     static void name(int sig)
 

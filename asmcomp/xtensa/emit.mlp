@@ -1,0 +1,83 @@
+#2 "asmcomp/arm/emit.mlp"
+
+open Cmm
+open Mach
+open Linearize
+open Emitaux
+
+(* Emission of Xtensa LX6 assembly code *)
+
+let function_name = ref ""
+
+(*
+let emit_label lbl =
+  emit_string ".L"; emit_int lbl
+*)
+let emit_symbol s = Emitaux.emit_symbol '$' s 
+
+let emit_instruction instr = 
+  emit_debug_info instr.dbg;
+  match instr.desc with 
+      Lend -> ()
+    | Lop(Imove | Ispill | Ireload) -> ()
+    | Lop(Iconst_int _n) -> ()
+    | Lop(Iconst_float _f) -> () 
+    | Lop(Iconst_symbol _s) -> ()
+    | Lop(Icall_ind {label_after = _;}) -> ()
+    | Lop(Icall_imm { func = _; label_after = _; }) -> ()
+    | Lop(Itailcall_ind { label_after = _; }) -> ()
+    | Lop(Itailcall_imm { func = _; label_after = _;}) -> () 
+    | Lop(Iextcall { func = _; alloc = false;}) -> ()
+    | Lop(Iextcall { func = _; alloc = true; label_after = _; }) -> ()
+    | Lop(Istackoffset _n) -> ()
+    | Lop(Iload(Single, _addr)) -> ()
+    | Lop(Iload((Double | Double_u), _addr)) -> ()
+    | Lop(Iload(_size, _addr)) -> ()
+    | Lop(Istore(Single, _addr, _)) -> ()
+    | Lop(Istore((Double | Double_u), _addr, _)) -> () 
+    | Lop(Istore(_size, _addr, _)) -> ()
+    | Lop(Ialloc { words = _n; label_after_call_gc = _; }) -> ()
+    | Lop(Iintop(Icomp _cmp)) -> () 
+    | Lop(Iintop_imm(Icomp _cmp, _n)) -> ()
+    | Lop(Iintop (Icheckbound { label_after_error = _; } )) -> ()
+    | Lop(Iintop_imm(Icheckbound { label_after_error = _; }, _n)) -> ()
+    | Lop(Iintop _op) -> ()
+    | Lop(Iintop_imm(_op, _n)) -> ()
+    | Lop(Iabsf | Inegf as _op) -> ()
+    | Lop(Ifloatofint) -> ()
+    | Lop(Iintoffloat) -> ()
+    | Lop(Iaddf | Isubf | Imulf | Idivf as _op) -> ()
+    | Lop(Iname_for_debugger _) -> ()
+    | Lop(Ispecific(_)) ->  ()
+    | Lreloadretaddr -> ()
+    | Lreturn -> ()
+    | Llabel(_label) -> ()
+    | Lbranch(_label) -> ()
+    | Lcondbranch(_test, _label) -> () 
+    | Lcondbranch3(_br1, _br2, _br3) -> ()
+    | Lswitch(_labels) -> ()
+    | Lsetuptrap(_label) -> ()
+    | Lpushtrap -> ()
+    | Lpoptrap -> ()
+    | Lraise(_raise_kind) -> ()
+
+
+let rec emit_all instr = match instr.desc with 
+  | Lend -> () 
+  | _ -> emit_instruction instr; emit_all instr.next 
+
+let fundecl fundecl = 
+  function_name := fundecl.fun_name;
+  ` .text\n`;
+  ` .align 4\n`;
+  ` .global {emit_symbol fundecl.fun_name}\n`;
+  ` .type {emit_symbol fundecl.fun_name}, @function\n`;
+  `{emit_symbol fundecl.fun_name}:\n`;
+  emit_all fundecl.fun_body;
+  ()
+
+let data _l = ()
+
+let begin_assembly () = ()
+
+let end_assembly () = ()

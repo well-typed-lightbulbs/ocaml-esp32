@@ -22,6 +22,7 @@
 
 /* Macros to access the stack frame */
 
+
 #ifdef TARGET_i386
 #define Saved_return_address(sp) *((intnat *)((sp) - 4))
 #ifndef SYS_win32
@@ -68,6 +69,12 @@
 #ifdef TARGET_arm64
 #define Saved_return_address(sp) *((intnat *)((sp) - 8))
 #define Callback_link(sp) ((struct caml_context *)((sp) + 16))
+#endif
+
+#ifdef TARGET_xtensa
+#warning "TO CHECK"
+#define Saved_return_address(sp) *((intnat *)((sp) - 4))
+#define Callback_link(sp) ((struct caml_context *)((sp) + 8))
 #endif
 
 /* Structure of OCaml callback contexts */
