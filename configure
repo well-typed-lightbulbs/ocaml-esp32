@@ -1012,6 +1012,7 @@ case "$target" in
   x86_64-*-mingw*)              arch=amd64; system=mingw;;
   aarch64-*-linux*)             arch=arm64; system=linux;;
   x86_64-*-cygwin*)             arch=amd64; system=cygwin;;
+  xtensa-*-elf)                 arch=xtensa; system=elf;;
 esac
 
 # Some platforms exist both in 32-bit and 64-bit variants, not distinguished
@@ -1069,6 +1070,8 @@ case "$arch,$system" in
   *,dragonfly)    as="${TOOLPREF}as"
                   aspp="${TOOLPREF}cc -c";;
   *,freebsd)      as="${TOOLPREF}as"
+                  aspp="${TOOLPREF}cc -c";;
+  xtensa,elf)     as="${TOOLPREF}as"
                   aspp="${TOOLPREF}cc -c";;
   amd64,*|arm,*|arm64,*|i386,*|power,bsd*|power,netbsd)
                   as="${TOOLPREF}as"

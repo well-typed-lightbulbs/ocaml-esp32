@@ -60,12 +60,12 @@ include stdlib/StdlibModules
 
 CAMLC=$(CAMLRUN) boot/ocamlc -g -nostdlib -I boot -use-prims byterun/primitives
 CAMLOPT=$(CAMLRUN) ./ocamlopt -g -nostdlib -I stdlib -I otherlibs/dynlink
-ARCHES=amd64 i386 arm arm64 power s390x
+ARCHES=amd64 i386 arm arm64 power s390x xtensa
 INCLUDES=-I utils -I parsing -I typing -I bytecomp -I middle_end \
         -I middle_end/base_types -I asmcomp -I asmcomp/debug \
         -I driver -I toplevel
 
-COMPFLAGS=-strict-sequence -principal -absname -w +a-4-9-41-42-44-45-48 \
+COMPFLAGS=-verbose -strict-sequence -principal -absname -w +a-4-9-41-42-44-45-48 \
 	  -warn-error A \
           -bin-annot -safe-string -strict-formats $(INCLUDES)
 LINKFLAGS=
@@ -390,10 +390,15 @@ coldstart:
 	cp byterun/ocamlrun$(EXE) boot/ocamlrun$(EXE)
 	$(MAKE) -C yacc $(BOOT_FLEXLINK_CMD) all
 	cp yacc/ocamlyacc$(EXE) boot/ocamlyacc$(EXE)
+	cd boot; $(LN) ../byterun/libcamlrun.$(A) .
+
+.PHONY: coldstart-stdlib 
+coldstart-stdlib: byterun/primitives 
+	$(MAKE) -C byterun caml/version.h
 	$(MAKE) -C stdlib $(BOOT_FLEXLINK_CMD) \
 	  COMPILER="../boot/ocamlc -use-prims ../byterun/primitives" all
 	cd stdlib; cp $(LIBFILES) ../boot
-	cd boot; $(LN) ../byterun/libcamlrun.$(A) .
+
 
 # Recompile the core system using the bootstrap compiler
 .PHONY: coreall
@@ -405,6 +410,7 @@ coreall:
 .PHONY: core
 core:
 	$(MAKE) coldstart
+	$(MAKE) coldstart-stdlib
 	$(MAKE) coreall
 
 # Save the current bootstrap compiler
@@ -455,7 +461,7 @@ cleanboot:
 
 # Compile the native-code compiler
 .PHONY: opt-core
-opt-core: runtimeopt
+opt-core: ocamlc runtimeopt
 	$(MAKE) ocamlopt
 	$(MAKE) libraryopt
 
@@ -522,12 +528,12 @@ bootstrap: coreboot
 # Compile everything the first time
 
 .PHONY: world
-world: coldstart
+world: coldstart coldstart-stdlib
 	$(MAKE) all
 
 # Compile also native code compiler and libraries, fast
 .PHONY: world.opt
-world.opt: coldstart
+world.opt: coldstart coldstart-stdlib
 	$(MAKE) opt.opt
 
 # FlexDLL sources missing error messages
@@ -1001,7 +1007,7 @@ endif
 # The runtime system for the native-code compiler
 
 .PHONY: runtimeopt
-runtimeopt: stdlib/libasmrun.$(A)
+runtimeopt: coldstart-stdlib stdlib/libasmrun.$(A)
 
 .PHONY: makeruntimeopt
 makeruntimeopt:
