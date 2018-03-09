@@ -32,6 +32,7 @@
 *.out.dSYM
 *.swp
 _ocamltest
+*.gch
 
 # local to root directory
 
