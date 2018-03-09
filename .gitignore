@@ -34,6 +34,7 @@
 _ocamltest
 _ocamltestd
 *.odoc
+*.gch
 
 # local to root directory
 
