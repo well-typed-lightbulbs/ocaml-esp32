@@ -1,65 +1,357 @@
-#2 "asmcomp/arm/emit.mlp"
+#2 "asmcomp/xtensa/emit.mlp"
 
+open Arch
 open Cmm
 open Mach
 open Linearize
 open Emitaux
+open Reg
+open Proc
+open Misc
 
 (* Emission of Xtensa LX6 assembly code *)
 
-let function_name = ref ""
+type literal = 
+  | Double of (int32 * int32) 
+  | Single of int32
+  | Label of int 
 
-(*
+let function_name = ref ""
+let pending_literals = ref []
+let pending_strings = ref []
+
 let emit_label lbl =
-  emit_string ".L"; emit_int lbl
-*)
+  emit_string ".LC"; emit_int lbl
+
 let emit_symbol s = Emitaux.emit_symbol '$' s 
 
-let emit_instruction instr = 
-  emit_debug_info instr.dbg;
-  match instr.desc with 
-      Lend -> ()
-    | Lop(Imove | Ispill | Ireload) -> ()
-    | Lop(Iconst_int _n) -> ()
-    | Lop(Iconst_float _f) -> () 
-    | Lop(Iconst_symbol _s) -> ()
-    | Lop(Icall_ind {label_after = _;}) -> ()
-    | Lop(Icall_imm { func = _; label_after = _; }) -> ()
-    | Lop(Itailcall_ind { label_after = _; }) -> ()
-    | Lop(Itailcall_imm { func = _; label_after = _;}) -> () 
-    | Lop(Iextcall { func = _; alloc = false;}) -> ()
-    | Lop(Iextcall { func = _; alloc = true; label_after = _; }) -> ()
-    | Lop(Istackoffset _n) -> ()
-    | Lop(Iload(Single, _addr)) -> ()
-    | Lop(Iload((Double | Double_u), _addr)) -> ()
-    | Lop(Iload(_size, _addr)) -> ()
-    | Lop(Istore(Single, _addr, _)) -> ()
-    | Lop(Istore((Double | Double_u), _addr, _)) -> () 
-    | Lop(Istore(_size, _addr, _)) -> ()
-    | Lop(Ialloc { words = _n; label_after_call_gc = _; }) -> ()
-    | Lop(Iintop(Icomp _cmp)) -> () 
-    | Lop(Iintop_imm(Icomp _cmp, _n)) -> ()
-    | Lop(Iintop (Icheckbound { label_after_error = _; } )) -> ()
-    | Lop(Iintop_imm(Icheckbound { label_after_error = _; }, _n)) -> ()
-    | Lop(Iintop _op) -> ()
-    | Lop(Iintop_imm(_op, _n)) -> ()
-    | Lop(Iabsf | Inegf as _op) -> ()
-    | Lop(Ifloatofint) -> ()
-    | Lop(Iintoffloat) -> ()
-    | Lop(Iaddf | Isubf | Imulf | Idivf as _op) -> ()
-    | Lop(Iname_for_debugger _) -> ()
-    | Lop(Ispecific(_)) ->  ()
-    | Lreloadretaddr -> ()
-    | Lreturn -> ()
-    | Llabel(_label) -> ()
-    | Lbranch(_label) -> ()
-    | Lcondbranch(_test, _label) -> () 
-    | Lcondbranch3(_br1, _br2, _br3) -> ()
-    | Lswitch(_labels) -> ()
-    | Lsetuptrap(_label) -> ()
-    | Lpushtrap -> ()
-    | Lpoptrap -> ()
-    | Lraise(_raise_kind) -> ()
+let emit_reg = function 
+  | {loc = Reg r} -> emit_string (register_name r)
+  | _ -> fatal_error "Emit_xtensa.emit_reg"
+
+let emit_int_const dst i = 
+  let n = new_label () in
+  pending_literals := (n, Single i) :: !pending_literals;
+  ` l32r {emit_reg dst}, {emit_label n}\n`
+
+let emit_float_const dst_hi dst_lo f = 
+  let n = new_label () 
+  and high_bits = Int64.to_int32 (Int64.shift_right_logical f 32)
+  and low_bits = Int64.to_int32 f in 
+  pending_literals := (n, Double (low_bits, high_bits)) :: !pending_literals;
+  ` l32r {emit_reg dst_lo}, {emit_label n}\n`;
+  ` l32r {emit_reg dst_hi}, {emit_label n}+4\n`
+
+let emit_symbol_const dst s = 
+  let s_label = new_label () 
+  and n = new_label () in 
+  pending_strings := (s_label, s) :: !pending_strings;
+  pending_literals := (n, Label s_label) :: !pending_literals;
+  ` l32r {emit_reg dst}, {emit_label n}\n`
+
+let emit_addressing addr r n = 
+  match addr with
+    Iindexed ofs ->
+      `{emit_reg r.(n)}, {emit_int ofs}`
+
+let flush_strings () = 
+  `.section .rodata\n`;
+  let rec write_str = function 
+    | [] -> ()
+    | (label, value) :: next -> 
+    begin
+      `.align 4\n`;
+      `{emit_label label}:\n`;
+      `.string `; emit_string "\""; emit_string value; emit_string "\"";`\n`;
+      write_str next
+    end 
+  in 
+  write_str !pending_strings;
+  pending_strings := []
+
+
+let flush_literals () = 
+  `.text\n`;
+  `.literal_position\n`;
+  let rec write_literal = function 
+    | [] -> ()
+    | (label, item) :: next -> 
+    begin
+      `.literal {emit_label label}, `;
+      begin match item with 
+        | Label l -> emit_label l
+        | Single i -> emit_int32 i 
+        | Double (i1, i2) -> emit_int32 i1; `, `; emit_int32 i2
+      end;
+      `\n`;
+      write_literal next;
+    end 
+  in 
+  write_literal !pending_literals;
+  pending_literals := []
+
+type comparison_op = Cmp of string | CmpOr of (string * string) | CmpNor of (string * string)
+
+let generate_comparison_op = function 
+| Isigned Ceq ->    Cmp ("beq" ) | Isigned Cne ->    Cmp ("bne" ) | Isigned Cle -> CmpOr("blt","beq")
+| Isigned Cge ->    Cmp ("bge" ) | Isigned Clt ->    Cmp ("blt" ) | Isigned Cgt -> CmpNor("blt","beq")
+| Iunsigned Ceq ->  Cmp ("beq" ) | Iunsigned Cne ->  Cmp ("bne" ) | Iunsigned Cle -> CmpOr("bltu","beq")
+| Iunsigned Cge ->  Cmp ("bgeu") | Iunsigned Clt ->  Cmp ("bltu") | Iunsigned Cgt -> CmpNor("bltu","beq")
+
+let emit_if_then_else cmp reg1 reg2 label_then label_else = 
+  begin 
+    match generate_comparison_op cmp with 
+    | Cmp op -> 
+      `{emit_string op} {emit_reg reg1}, {emit_reg reg2}, {emit_label label_then}\n`
+    | CmpNor (op1, op2) -> 
+      (`{emit_string op1} {emit_reg reg1}, {emit_reg reg2}, {emit_label label_else}\n`;
+      `{emit_string op2} {emit_reg reg1}, {emit_reg reg2}, {emit_label label_else}\n`;
+      ` j {emit_label label_then}\n`)
+    | CmpOr (op1, op2) -> 
+      (`{emit_string op1} {emit_reg reg1}, {emit_reg reg2}, {emit_label label_then}\n`;
+      `{emit_string op2} {emit_reg reg1}, {emit_reg reg2}, {emit_label label_then}\n`)
+  end
+
+let emit_if_then_else_imm cmp reg1 imm label_then label_else = 
+  begin 
+    match generate_comparison_op cmp with 
+    | Cmp op -> 
+      `{emit_string op} {emit_reg reg1}, {emit_int imm}, {emit_label label_then}\n`
+    | CmpNor (op1, op2) -> 
+      (`{emit_string op1} {emit_reg reg1}, {emit_int imm}, {emit_label label_else}\n`;
+      `{emit_string op2} {emit_reg reg1}, {emit_int imm}, {emit_label label_else}\n`;
+      ` j {emit_label label_then}\n`)
+    | CmpOr (op1, op2) -> 
+      (`{emit_string op1} {emit_reg reg1}, {emit_int imm}, {emit_label label_then}\n`;
+      `{emit_string op2} {emit_reg reg1}, {emit_int imm}, {emit_label label_then}\n`)
+  end
+
+
+let stack_offset = ref 0
+
+let frame_size () = 
+  let sz = !stack_offset in 
+  Misc.align sz 8
+    
+(* TODO *)
+let slot_offset = function 
+  | Incoming _n -> 0 
+  | Local _n -> 0 
+  | Outgoing _n -> 0
+
+let emit_stack r = 
+  match r.loc with  
+  | Stack s -> 
+    let ofs = slot_offset s in 
+    ` a1, {emit_int ofs}`
+  | _ -> fatal_error "Emit_xtensa.emit_stack"
+
+let emit_stack_adjustment n =
+  if n = 0 then () else begin
+    `	addi	a1, a1, {emit_int n}\n`
+  end
+
+(* Record live pointers at call points *)
+
+let record_frame_label ?label live raise_ dbg =
+  let lbl =
+    match label with
+    | None -> new_label ()
+    | Some label -> label
+  in
+  let live_offset = ref [] in
+  Reg.Set.iter
+    (function
+      | {typ = Val; loc = Reg r} ->
+          live_offset := ((r lsl 1) + 1) :: !live_offset
+      | {typ = Val; loc = Stack s} ->
+          live_offset := slot_offset s :: !live_offset
+      | {typ = Addr} as r ->
+          Misc.fatal_error ("bad GC root " ^ Reg.name r)
+      | _ -> ())
+    live;
+  record_frame_descr ~label:lbl ~frame_size:(frame_size())
+    ~live_offset:!live_offset ~raise_frame:raise_ dbg;
+  lbl
+
+let record_frame ?label live raise_ dbg =
+  let lbl = record_frame_label ?label live raise_ dbg in `{emit_label lbl}:`
+
+
+let emit_instruction i = 
+  emit_debug_info i.dbg;
+  match i.desc with 
+    | Lend -> ``
+    | Lop(Imove | Ispill | Ireload) -> 
+    assert (Array.length i.res >= 1);
+    assert (Array.length i.arg >= 1);
+      begin
+        let src = i.arg.(0) and dst = i.res.(0) in
+        if src.loc = dst.loc then () else begin 
+          match (src.loc, dst.loc) with 
+          | Reg _, Reg _ -> 
+              ` mov {emit_reg dst}, {emit_reg src}\n`
+          | Reg _, Stack _ -> 
+              ` s32i {emit_reg src}, {emit_stack dst}\n`
+          | Stack _, Reg _ -> 
+              ` l32i {emit_reg dst}, {emit_stack src}\n`
+          | _, _ -> assert false
+        end
+      end
+    | Lop(Iconst_int n) -> 
+    assert (Array.length i.res >= 1);
+      let n = Nativeint.to_int32 n in 
+      emit_int_const i.res.(0) n 
+    | Lop(Iconst_float f) -> assert (Array.length i.res >= 2); emit_float_const i.res.(0) i.res.(1) f
+    | Lop(Iconst_symbol s) -> 
+    assert (Array.length i.res >= 1);emit_symbol_const i.res.(0) s
+    | Lop(Icall_ind {label_after;}) -> 
+    assert (Array.length i.arg >= 1);
+      begin 
+        `	callx0	{emit_reg i.arg.(0)}\n`;
+        `{record_frame i.live false i.dbg ~label:label_after}\n`; 
+      end
+    | Lop(Icall_imm { func; label_after; }) -> 
+      begin 
+        ` call0	{emit_symbol func}\n`;
+        `{record_frame i.live false i.dbg ~label:label_after}\n`;
+      end
+    | Lop(Itailcall_ind { label_after = _; }) -> ``
+    | Lop(Itailcall_imm { func = _; label_after = _;}) -> `` 
+    | Lop(Iextcall { func = _; alloc = false;}) -> ``
+    | Lop(Iextcall { func = _; alloc = true; label_after = _; }) -> ``
+    | Lop(Istackoffset n) -> 
+      begin
+        assert (n mod 8 = 0);
+        emit_stack_adjustment (-n);
+        stack_offset := !stack_offset + n;
+      end
+    | Lop(Iload((Double | Double_u), addr)) -> 
+      assert (Array.length i.res >= 2);
+      assert (Array.length i.arg >= 1);
+      let addr' = offset_addressing addr 4 in
+      begin
+        `	l32i	{emit_reg i.res.(0)}, {emit_addressing addr i.arg 0}\n`;
+        `	l32i	{emit_reg i.res.(1)}, {emit_addressing addr' i.arg 0}\n`
+      end
+    | Lop(Iload(size, addr)) -> 
+    assert (Array.length i.res >= 1);
+    assert (Array.length i.arg >= 1);
+      let r = i.res.(0) in
+      let instr =
+        match size with
+          Byte_unsigned -> "l8ui"
+        | Byte_signed -> assert false
+        | Sixteen_unsigned -> "l16ui"
+        | Sixteen_signed -> "l16si"
+        | _ (* 32-bit quantities *) -> "l32i" in
+      `	{emit_string instr}	{emit_reg r}, {emit_addressing addr i.arg 0}\n`;
+    | Lop(Istore((Double | Double_u), addr, _)) -> 
+      assert (Array.length i.res >= 2);
+      assert (Array.length i.arg >= 1);
+      let addr' = offset_addressing addr 4 in
+      begin
+        `	s32i	{emit_reg i.res.(0)}, {emit_addressing addr i.arg 0}\n`;
+        `	s32i	{emit_reg i.res.(1)}, {emit_addressing addr' i.arg 0}\n`
+      end 
+    | Lop(Istore(size, addr, _)) -> 
+      let r = i.res.(0) in
+      let instr =
+        match size with
+          Byte_unsigned -> "s8i"
+        | Byte_signed -> "s8i"
+        | Sixteen_unsigned -> "s16i"
+        | Sixteen_signed -> "s16i"
+        | _ (* 32-bit quantities *) -> "s32i" in
+      `	{emit_string instr}	{emit_reg r}, {emit_addressing addr i.arg 0}\n`;
+    | Lop(Ialloc { words = _n; label_after_call_gc = _; }) -> ``
+    | Lop(Iintop(Icomp cmp)) -> 
+    assert (Array.length i.arg >= 2);
+    assert (Array.length i.res >= 1);
+      let label_1 = new_label () and label_0 = new_label () and label_end = new_label () in
+      emit_if_then_else cmp i.arg.(0) i.arg.(1) label_1 label_0;
+      ` {emit_label label_0}:\n`;
+      ` movi {emit_reg i.res.(0)}, 0\n`;
+      ` j {emit_label label_end}\n`;
+      ` {emit_label label_1}:\n`;
+      ` movi {emit_reg i.res.(0)}, 1\n`;
+      ` {emit_label label_end}:\n`;
+      
+    | Lop(Iintop_imm(Icomp cmp, n)) -> 
+    assert (Array.length i.res >= 1);
+    assert (Array.length i.arg >= 2);
+      let label_1 = new_label () and label_0 = new_label () and label_end = new_label () in
+      emit_if_then_else_imm cmp i.arg.(0) n label_1 label_0;
+      ` {emit_label label_0}:\n`;
+      ` movi {emit_reg i.res.(0)}, 0\n`;
+      ` j {emit_label label_end}\n`;
+      ` {emit_label label_1}:\n`;
+      ` movi {emit_reg i.res.(0)}, 1\n`;
+      ` {emit_label label_end}:\n`;
+      
+    | Lop(Iintop (Icheckbound { label_after_error = _; } )) -> ``
+    | Lop(Iintop_imm(Icheckbound { label_after_error = _; }, _n)) -> ``
+    | Lop(Iintop _op) -> ``
+    | Lop(Iintop_imm(_op, _n)) -> ``
+    | Lop(Iabsf | Inegf as _op) -> ``
+    | Lop(Ifloatofint) -> ``
+    | Lop(Iintoffloat) -> ``
+    | Lop(Iaddf | Isubf | Imulf | Idivf as _op) -> ``
+    | Lop(Iname_for_debugger _) -> ``
+    | Lop(Ispecific(_)) ->  ``
+    | Lreloadretaddr -> ``
+    | Lreturn -> 
+      ` ret \n`
+    | Llabel(label) -> 
+      emit_label label; `:\n`;
+    | Lbranch(label) -> 
+      `	j	{emit_label label}\n`; 
+    | Lcondbranch(tst, lbl) -> 
+    assert (Array.length i.arg >= 1);
+      begin match tst with
+          Itruetest ->
+            `	bne	{emit_reg i.arg.(0)}, 0, {emit_label lbl}\n`;
+        | Ifalsetest ->
+            `	beq	{emit_reg i.arg.(0)}, 0, {emit_label lbl}\n`;
+        | Iinttest cmp ->
+        assert (Array.length i.arg >= 2);
+          let end_label = new_label () in 
+            emit_if_then_else cmp i.arg.(0) i.arg.(1) lbl end_label;
+            emit_label end_label; `:\n`;
+        | Iinttest_imm(cmp, n) ->
+          let end_label = new_label () in 
+            emit_if_then_else_imm cmp i.arg.(0) n lbl end_label;
+            emit_label end_label; `:\n`;
+        | Ifloattest(_cmp, _neg) -> ()
+        | Ioddtest -> ()
+        | Ieventest -> ()
+      end
+    | Lcondbranch3(br1, br2, br3) -> 
+    assert (Array.length i.arg >= 1);
+      let end_label = new_label () in 
+      begin match br1 with
+        None -> ()
+      | Some lbl -> `	blti	{emit_reg i.arg.(0)}, 1, {emit_label lbl}\n`
+      end;
+      begin match br2 with
+        None -> ()
+      | Some lbl -> `	beqi	{emit_reg i.arg.(0)}, 1, {emit_label lbl}\n`
+      end;
+      begin match br3 with
+        None -> ()
+      | Some lbl -> 
+        begin 
+          `	blti	{emit_reg i.arg.(0)}, 1, {emit_label end_label}\n`;
+          `	beqi	{emit_reg i.arg.(0)}, 1, {emit_label end_label}\n`;
+          `	j {emit_label lbl}\n`;
+          emit_label end_label; `:\n`;
+        end
+      end;
+    | Lswitch(_labels) ->  ``
+    | Lsetuptrap(_label) -> ``
+    | Lpushtrap -> ``
+    | Lpoptrap -> ``
+    | Lraise(_raise_kind) -> ``
 
 
 let rec emit_all instr = match instr.desc with 
@@ -74,6 +366,8 @@ let fundecl fundecl =
   ` .type {emit_symbol fundecl.fun_name}, @function\n`;
   `{emit_symbol fundecl.fun_name}:\n`;
   emit_all fundecl.fun_body;
+  flush_strings ();
+  flush_literals ();
   ()
 
 let data _l = ()
