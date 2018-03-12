@@ -393,7 +393,7 @@ coldstart:
 	cd boot; $(LN) ../byterun/libcamlrun.$(A) .
 
 .PHONY: coldstart-stdlib 
-coldstart-stdlib: byterun/primitives 
+coldstart-stdlib: byterun/primitives
 	$(MAKE) -C byterun caml/version.h
 	$(MAKE) -C stdlib $(BOOT_FLEXLINK_CMD) \
 	  COMPILER="../boot/ocamlc -use-prims ../byterun/primitives" all
@@ -470,6 +470,7 @@ opt:
 	$(MAKE) runtimeopt
 	$(MAKE) ocamlopt
 	$(MAKE) libraryopt
+	$(MAKE) -C tools ocamlmklib
 	$(MAKE) otherlibrariesopt ocamltoolsopt
 
 # Native-code versions of the tools
@@ -664,11 +665,16 @@ endif
 	   $(LN) ocamllex.byte$(EXE) ocamllex$(EXE); \
 	fi
 
-# Installation of the native-code compiler
-.PHONY: installopt
-installopt:
+# Installation of the native-code compiler core
+.PHONY: installopt-core
+installopt-core:
+	$(MKDIR) "$(INSTALL_BINDIR)"
+	$(MKDIR) "$(INSTALL_LIBDIR)"
+	$(MKDIR) "$(INSTALL_STUBLIBDIR)"
+	$(MKDIR) "$(INSTALL_COMPLIBDIR)"
 	$(MAKE) -C asmrun install
-	$(INSTALL_PROG) ocamlopt "$(INSTALL_BINDIR)/ocamlopt.byte$(EXE)"
+	cp ocamlopt "$(INSTALL_BINDIR)/ocamlopt.byte$(EXE)"
+	$(MAKE) -C stdlib install
 	$(MAKE) -C stdlib installopt
 	$(INSTALL_DATA) \
 	    middle_end/*.cmi \
@@ -691,6 +697,11 @@ installopt:
 	if test -n "$(WITH_OCAMLDOC)"; then \
 	  $(MAKE) -C ocamldoc installopt; \
 	fi
+
+
+# Installation of the native-code compiler
+.PHONY: installopt
+installopt: installopt-core
 	for i in $(OTHERLIBRARIES); do \
 	  $(MAKE) -C otherlibs/$$i installopt || exit $$?; \
 	done
