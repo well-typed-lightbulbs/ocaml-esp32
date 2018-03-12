@@ -313,7 +313,7 @@ let symbol_literal s =
     lbl
 
 (* Emit all pending literals *)
-let emit_literals() =
+let emit_literals () =
   if !float_literals <> [] then begin
     `	.align	3\n`;
     List.iter

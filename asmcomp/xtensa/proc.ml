@@ -37,24 +37,24 @@ let int_reg_name =
 (* let mac_reg_name =
   [| "m0"; "m1"; "m2"; "m3";|]
 *)
-
+(*
 let float_reg_name =
   [| "f0"; "f2"; "f4"; "f6"; "f1"; "f3"; "f5"; "f7";
      "f8"; "f9"; "f10"; "f11"; "f12"; "f13"; "f14"; "f15" |]
+*)
 
-let num_register_classes = 2
+let num_register_classes = 1
 
 let register_class r =
   match r.typ with
   | Val | Int | Addr -> 0
-  | Float -> 1
+  | Float -> 0
 
-let num_available_registers = [| 16; 16 |]
+let num_available_registers = [| 16 |]
 
-let first_available_register = [| 0; 100 |]
+let first_available_register = [| 0 |]
 
-let register_name r =
-  if r < 100 then int_reg_name.(r) else float_reg_name.(r - 100)
+let register_name r = int_reg_name.(r)
 
 let rotate_registers = true
 
@@ -64,15 +64,9 @@ let hard_int_reg =
   let v = Array.make 16 Reg.dummy in
   for i = 0 to 15 do v.(i) <- Reg.at_location Int (Reg i) done; v
 
-let hard_float_reg =
-  let v = Array.make 16 Reg.dummy in
-  for i = 0 to 15 do v.(i) <- Reg.at_location Float (Reg(100 + i)) done; v
+let all_phys_regs = hard_int_reg
 
-let all_phys_regs =
-  Array.append hard_int_reg hard_float_reg
-
-let phys_reg n =
-  if n < 100 then hard_int_reg.(n) else hard_float_reg.(n - 100)
+let phys_reg n = hard_int_reg.(n)
 
 let stack_slot slot ty =
   Reg.at_location ty (Stack slot)
