@@ -30,9 +30,32 @@ let word_addressed = false
 
 (* Registers available for register allocation *)
 
+
+
+(*
+  Integer register map:
+    a0       return address
+    a1       stack pointer
+    a2 - a11 general purpose (not preserved)
+    a12      trap pointer
+    a13      allocation pointer 
+    a14      allocation limit
+    a15      whatever 
+*)
+(* 
+ * Calling conventions
+ * Beginning with CALL0 ABI (xtensa.pdf: 613).
+ * a0 Return Address
+ * a1 (sp) Stack Pointer (callee-saved)
+ * a2 – a7 Function Arguments
+ * a8 Static Chain (see Section 8.1.8)
+ * a12 – a15 Callee-saved
+ * a15 Stack-Frame Pointer (optional)
+ *)
+
 let int_reg_name =
-  [| "a0"; "a1"; "a2"; "a3"; "a4"; "a5"; "a6"; "a7"; "a8"; "a9"; "a10"; "a11";
-     "a12"; "a13"; "a14"; "a15";|]
+  [| "a2"; "a3"; "a4"; "a5"; "a6"; "a7"; "a8"; "a9"; "a10"; "a11"; "a15"|]
+
 
 (* let mac_reg_name =
   [| "m0"; "m1"; "m2"; "m3";|]
@@ -50,19 +73,19 @@ let register_class r =
   | Val | Int | Addr -> 0
   | Float -> 0
 
-let num_available_registers = [| 16 |]
+let num_available_registers = [| 11 |]
 
 let first_available_register = [| 0 |]
 
-let register_name r = int_reg_name.(r)
+let register_name r = assert (r < 11);int_reg_name.(r)
 
 let rotate_registers = true
 
 (* Representation of hard registers by pseudo-registers *)
 
 let hard_int_reg =
-  let v = Array.make 16 Reg.dummy in
-  for i = 0 to 15 do v.(i) <- Reg.at_location Int (Reg i) done; v
+  let v = Array.make 11 Reg.dummy in
+  for i = 0 to 10 do v.(i) <- Reg.at_location Int (Reg i) done; v
 
 let all_phys_regs = hard_int_reg
 
@@ -73,16 +96,6 @@ let stack_slot slot ty =
 
 let loc_spacetime_node_hole = Reg.dummy  (* Spacetime unsupported *)
 
-(* 
- * Calling conventions
- * Beginning with CALL0 ABI (xtensa.pdf: 613).
- * a0 Return Address
- * a1 (sp) Stack Pointer (callee-saved)
- * a2 – a7 Function Arguments
- * a8 Static Chain (see Section 8.1.8)
- * a12 – a15 Callee-saved
- * a15 Stack-Frame Pointer (optional)
- *)
 
 let calling_conventions
     first_reg last_reg make_stack arg =
@@ -185,12 +198,12 @@ let destroyed_at_raise = all_phys_regs
 (* Maximal register pressure *)
 
 let safe_register_pressure = function
-    Iextcall _ -> 16
-  | _ -> 16
+    Iextcall _ -> 11
+  | _ -> 11
 
 let max_register_pressure = function
-    Iextcall _ -> [| 16; 16 |]
-  | _ -> [| 16; 16 |]
+    Iextcall _ -> [| 11; 16 |]
+  | _ -> [| 11; 16 |]
 
 (* Pure operations (without any side effect besides updating their result
    registers). *)

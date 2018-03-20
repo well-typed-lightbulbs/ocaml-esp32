@@ -20,7 +20,8 @@ let allow_unaligned_access = false
 let division_crashes_on_overflow = false 
 
 let identity_addressing = Iindexed 0
-let offset_addressing (Iindexed n) delta = Iindexed(n + delta)
+let offset_addressing (Iindexed n) delta = 
+    Iindexed(n + delta)
 let num_args_addressing = function 
     | Iindexed _ -> 1
 
