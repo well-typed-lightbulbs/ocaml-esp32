@@ -461,7 +461,7 @@ cleanboot:
 
 # Compile the native-code compiler
 .PHONY: opt-core
-opt-core: ocamlc runtimeopt
+opt-core: coldstart-stdlib ocamlc runtimeopt
 	$(MAKE) ocamlopt
 	$(MAKE) libraryopt
 
