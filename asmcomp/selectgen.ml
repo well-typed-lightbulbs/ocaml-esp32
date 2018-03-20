@@ -1013,7 +1013,7 @@ method emit_stores env data regs_addr =
           | _ ->
               self#insert (Iop op) (Array.append regs regs_addr) [||];
               a := Arch.offset_addressing !a (size_expr env e))
-    data
+    data    
 
 (* Same, but in tail position *)
 
