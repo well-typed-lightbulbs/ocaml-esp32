@@ -202,8 +202,8 @@ let safe_register_pressure = function
   | _ -> 11
 
 let max_register_pressure = function
-    Iextcall _ -> [| 11; 16 |]
-  | _ -> [| 11; 16 |]
+    Iextcall _ -> [| 11 |]
+  | _ -> [| 11 |]
 
 (* Pure operations (without any side effect besides updating their result
    registers). *)
