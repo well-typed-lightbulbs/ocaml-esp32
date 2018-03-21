@@ -68,6 +68,17 @@ method select_operation_softfp op args dbg =
       self#select_operation (Cstore (Word_int, init)) [arg1; arg2'] dbg
     | _ -> super#select_operation op args dbg
 
+method! select_condition = function 
+  (* Turn fp comparisons into runtime ABI calls *)
+  | Cop(Ccmpf _ as op, args, dbg) ->
+      begin match self#select_operation_softfp op args dbg with
+        (Iintop_imm(Icomp(Iunsigned Ceq), 0), [arg]) -> (Ifalsetest, arg)
+      | (Iintop_imm(Icomp(Iunsigned Cne), 0), [arg]) -> (Itruetest, arg)
+      | _ -> assert false
+      end
+  | expr ->
+      super#select_condition expr
+
 method select_addressing chunk = function 
   | Cop((Cadda | Caddv), [arg; Cconst_int n], _)
     when is_offset chunk n -> 
