@@ -65,7 +65,10 @@ let emit_symbol_const dst s =
   ` l32r {emit_reg dst}, {emit_label n}\n`
 
 let emit_call s =
-  `call0	{emit_symbol s}\n`
+  let veneer = new_label () in 
+  ` .literal {emit_label veneer}, {emit_symbol s}\n`;
+  ` l32r    a11, {emit_label veneer}\n`;
+  ` callx0	a11\n`
 
 let emit_jump s =
   `j	{emit_symbol s}\n`
@@ -174,7 +177,6 @@ let flush_strings () =
 
 let flush_literals () = 
   `.text\n`;
-  `.literal_position\n`;
   let rec write_literal = function 
     | [] -> ()
     | (label, item) :: next -> 
@@ -322,10 +324,12 @@ let emit_instruction i =
       emit_int_const i.res.(0) n 
     | Lop(Iconst_float f) -> 
       emit_comment "Const float";
-      assert (Array.length i.res >= 2); emit_float_const i.res.(0) i.res.(1) f
-    | Lop(Iconst_symbol s) -> 
+      assert (Array.length i.res >= 2); 
+      emit_float_const i.res.(0) i.res.(1) f
+    | Lop(Iconst_symbol s) -> (* String emission *)
       emit_comment "Const symbol";
-      assert (Array.length i.res >= 1);emit_symbol_const i.res.(0) s
+      assert (Array.length i.res >= 1);
+      emit_symbol_const i.res.(0) s
     | Lop(Icall_ind {label_after;}) -> 
       emit_comment "Call_ind";
       assert (Array.length i.arg >= 1);
@@ -334,7 +338,7 @@ let emit_instruction i =
 
     | Lop(Icall_imm { func; label_after; }) -> 
       emit_comment "Call imm";
-      ` call0	{emit_symbol func}\n`;
+      emit_call func;
       `{record_frame i.live false i.dbg ~label:label_after}\n`;
     | Lop(Itailcall_ind { label_after = _; }) -> 
       emit_comment "Tailcall_ind";
@@ -529,8 +533,10 @@ let emit_instruction i =
     | Lswitch(jumptbl) -> 
       emit_comment "Switch"; 
       let switch_label = new_label () in
+      let __switch_label = new_label () in
       ` slli  a3, {emit_reg i.arg.(0)}, 2\n`; (* Multiply switch dest by 4 *)
-      `	l32r	a2, lbl\n`; (* Load base address of labels *)
+      ` .literal {emit_label __switch_label}, {emit_label switch_label}\n`;
+      `	l32r	a2, {emit_label __switch_label}\n`; (* Load base address of labels *)
       ` add   a2, a3, a2\n`; (* Add offset *)
       ` l32i  a2, a2, 0\n`; (* Load label address *)
       ` jx    a2\n`; (* Jump to label *)
@@ -539,10 +545,14 @@ let emit_instruction i =
       emit_label switch_label; `:\n`;
       for j = 0 to Array.length jumptbl - 1 do
         `	.word	{emit_label jumptbl.(j)}\n`
-      done
+      done;
+      ` .section .text\n`
     | Lsetuptrap(label) ->
+      let veneer = new_label () in 
       emit_comment "Setup trap"; 
-      ` call0 {emit_label label}\n`
+      ` .literal {emit_label veneer}, {emit_label label}\n`;
+      ` l32r    a11, {emit_label veneer}\n`;
+      ` callx0  a11\n`
     | Lpushtrap -> 
       emit_comment "Push trap";
       stack_offset := !stack_offset + 8;
@@ -566,10 +576,10 @@ let emit_instruction i =
         `{record_frame Reg.Set.empty true i.dbg}\n`
       | Cmm.Raise_notrace ->
         ` mov sp, {emit_string trap_ptr}\n`;
-        ` l32i a15, sp, 0\n`;
+        ` l32i a11, sp, 0\n`;
         ` l32i {emit_string trap_ptr}, sp, 4\n`;
         ` addi sp, sp, -8\n`;
-        ` jx a15\n`
+        ` jx a11\n`
       end
 
 
@@ -588,6 +598,7 @@ let fundecl fundecl =
   pending_literals := [];
   pending_strings := [];
   ` .text\n`;
+  ` .literal_position\n`;
   ` .align 4\n`;
   ` .global {emit_symbol fundecl.fun_name}\n`;
   ` .type {emit_symbol fundecl.fun_name}, @function\n`;
