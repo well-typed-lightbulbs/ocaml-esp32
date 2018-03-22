@@ -37,10 +37,11 @@ let word_addressed = false
     a0       return address
     a1       stack pointer
     a2 - a11 general purpose (not preserved)
-    a12      trap pointer
-    a13      allocation pointer 
-    a14      allocation limit
-    a15      whatever 
+    a11      scratch register (not preserved) 
+    a12      trap pointer (preserved) 
+    a13      allocation pointer (preserved) 
+    a14      allocation limit (preserved) 
+    a15      (preserved) 
 *)
 (* 
  * Calling conventions
@@ -153,19 +154,19 @@ let ensure_single_regs res =
 
 let loc_arguments arg = 
   let (loc, alignment) = 
-    calling_conventions 2 7 outgoing (single_regs arg) 
+    calling_conventions 0 5 outgoing (single_regs arg) 
   in
   ensure_single_regs loc, alignment
 
 let loc_parameters arg = 
   let (loc, _ofs) =
-    calling_conventions 2 7 incoming (single_regs arg)
+    calling_conventions 0 5 incoming (single_regs arg)
   in 
   ensure_single_regs loc 
 
 let loc_results res =
   let (loc, _ofs) = 
-    calling_conventions 2 5 not_supported (single_regs res)
+    calling_conventions 0 3 not_supported (single_regs res)
   in
   ensure_single_regs loc 
 
@@ -173,9 +174,9 @@ let loc_results res =
 let loc_external_results = loc_results
 
 let loc_external_arguments arg = 
-  calling_conventions 2 7 outgoing arg 
+  calling_conventions 0 5 outgoing arg 
 
-let loc_exn_bucket = phys_reg 2
+let loc_exn_bucket = phys_reg 0
 
 let regs_are_volatile _rs = false 
 
