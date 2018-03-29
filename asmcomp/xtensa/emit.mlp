@@ -11,22 +11,17 @@ open Misc
 
 (* Emission of Xtensa LX6 assembly code *)
 
-let trap_ptr = "a12"
-
-let alloc_ptr = "a13"
-let alloc_limit = "a14"
-
 type literal = 
   | Double of (int32 * int32) 
   | Single of int32
-  | Label of int 
 
 let stack_offset = ref 0
 
 let frame_size () =
   let sz =
-    !stack_offset +
-    (if !contains_calls then 4 else 0)
+    !stack_offset + (* Outgoing arguments *)
+    num_stack_slots.(0) * 4 + (* Local integers *)
+    (if !contains_calls then 4 else 0) (* Return address in case of call. *)
   in Misc.align sz 8
 
 let function_name = ref ""
@@ -57,38 +52,49 @@ let emit_float_const dst_hi dst_lo f =
   ` l32r {emit_reg dst_lo}, {emit_label n}\n`;
   ` l32r {emit_reg dst_hi}, {emit_label n}+4\n`
 
-let emit_symbol_const dst s = 
-  let s_label = new_label () 
-  and n = new_label () in 
-  pending_strings := (s_label, s) :: !pending_strings;
-  pending_literals := (n, Label s_label) :: !pending_literals;
-  ` l32r {emit_reg dst}, {emit_label n}\n`
-
-let emit_call s =
+(* Call to C using CALL8 ABI - a8 is destroyed *)
+let emit_call_to_C s =
   let veneer = new_label () in 
   ` .literal {emit_label veneer}, {emit_symbol s}\n`;
-  ` l32r    a11, {emit_label veneer}\n`;
-  ` callx0	a11\n`
+  ` l32r    a8, {emit_label veneer}\n`;
+  ` callx8	a8\n`
 
-let emit_jump s =
-  `j	{emit_symbol s}\n`
+(* Call to C using CALL0 ABI - a8 is destroyed *)
+let emit_call_to_OCaml s =
+  let veneer = new_label () in 
+  ` .literal {emit_label veneer}, {emit_symbol s}\n`;
+  ` l32r    a8, {emit_label veneer}\n`;
+  ` callx0	a8\n`
 
+let emit_addressing_mode = function 
+  | Iindexed ofs when ofs < 0 -> `e`
+  | _ -> `i`
+
+(* Addressing relative to a register. Can only be positive *)
 let emit_addressing addr r n = 
   match addr with
     Iindexed ofs ->
-      assert (ofs >= 0);
       `{emit_reg r.(n)}, {emit_int ofs}`
 
-
-let slot_offset loc cl =
+(* Position relative to stack pointer.
+ * The stack frame is the following: 
+ *  _______________________
+ *  | Arguments (Incoming) |
+ *   ---------------------- <- sp + !stack_offset + 4 * num_stack_slots.(0) + 4 if !contains_calls
+ *  |   Local Variables    | |
+ *   ---------------------- <- sp + !stack_offset
+ *  | Arguments (Outgoing) | |
+ *   ---------------------- <- sp
+ *
+ *)
+let slot_offset loc _cl =
   let res = match loc with
     Incoming n ->
       assert (n >= 0);
       frame_size() + n
   | Local n -> 
-      if cl = 0
-      then !stack_offset + n * 4
-      else !stack_offset + n * 8
+      assert (n >= 0);
+      !stack_offset + n * 4
   | Outgoing n ->
       assert (n >= 0);
       n
@@ -107,9 +113,9 @@ let record_frame_label ?label live raise_ dbg =
   let live_offset = ref [] in
   Reg.Set.iter
     (function
-      | {typ = Val; loc = Reg r} ->
+      | {typ = Val; loc = Reg r} ->(* Pointer in register: 2n+1 encoding of register index*)
           live_offset := ((r lsl 1) + 1) :: !live_offset
-      | {typ = Val; loc = Stack s} as reg ->
+      | {typ = Val; loc = Stack s} as reg -> (* Pointer on stack: give stack offset *)
           live_offset := slot_offset s (register_class reg) :: !live_offset
       | {typ = Addr} as r ->
           Misc.fatal_error ("bad GC root " ^ Reg.name r)
@@ -131,7 +137,7 @@ type gc_call =
 let call_gc_sites = ref ([] : gc_call list)
 
 let emit_call_gc gc =
-  `{emit_label gc.gc_lbl}:	{emit_call "caml_call_gc"}\n`;
+  `{emit_label gc.gc_lbl}:	{emit_call_to_OCaml "caml_call_gc"}\n`;
   `{emit_label gc.gc_frame_lbl}:	j	{emit_label gc.gc_return_lbl}\n`
 
 (* Record calls to caml_ml_array_bound_error.
@@ -157,7 +163,7 @@ let bound_error_label ?label dbg =
   end
 
 let emit_call_bound_error bd =
-  `{emit_label bd.bd_lbl}:	{emit_call "caml_ml_array_bound_error"}\n`;
+  `{emit_label bd.bd_lbl}:	{emit_call_to_OCaml "caml_ml_array_bound_error"}\n`;
   `{emit_label bd.bd_frame_lbl}:\n`
 
 let flush_strings () = 
@@ -175,6 +181,12 @@ let flush_strings () =
   write_str !pending_strings;
   pending_strings := []
 
+let emit_load_symbol register symbol = 
+  let n = new_label () in
+  `.literal {emit_label n}, {emit_string symbol}\n`;
+  `l32r  {emit_reg register}, {emit_label n}\n`
+
+(* Actually, no need to flush them at once as the assembler can do it itself..*)
 let flush_literals () = 
   `.text\n`;
   let rec write_literal = function 
@@ -183,7 +195,6 @@ let flush_literals () =
     begin
       `.literal {emit_label label}, `;
       begin match item with 
-        | Label l -> emit_label l
         | Single i -> emit_int32 i 
         | Double (i1, i2) -> emit_int32 i1; `, `; emit_int32 i2
       end;
@@ -202,8 +213,8 @@ let generate_comparison_op = function
 | Iunsigned Ceq ->  Cmp ("beq" ) | Iunsigned Cne ->  Cmp ("bne" ) | Iunsigned Cle -> CmpOr("bltu","beq")
 | Iunsigned Cge ->  Cmp ("bgeu") | Iunsigned Clt ->  Cmp ("bltu") | Iunsigned Cgt -> CmpNor("bltu","beq")
 
-let emit_comment str = 
-  `#{emit_string str}\n`
+let emit_comment _str = ``
+  (*` #{emit_string str}\n`*)
 
 
 type imm_reg = Immediate of int | Register of Reg.t
@@ -273,12 +284,12 @@ let emit_stack r =
   | Stack s -> 
     let ofs = slot_offset s (register_class r) in 
     assert (ofs >= 0);
-    ` a1, {emit_int ofs}`
+    ` sp, {emit_int ofs}`
   | _ -> fatal_error "Emit_xtensa.emit_stack"
 
 let emit_stack_adjustment n =
   if n = 0 then () else begin
-    `	addi	a1, a1, {emit_int n}\n`
+    `	addi	sp, sp, {emit_int n}\n`;
   end
 
 
@@ -329,7 +340,7 @@ let emit_instruction i =
     | Lop(Iconst_symbol s) -> (* String emission *)
       emit_comment "Const symbol";
       assert (Array.length i.res >= 1);
-      emit_symbol_const i.res.(0) s
+      emit_load_symbol i.res.(0) s
     | Lop(Icall_ind {label_after;}) -> 
       emit_comment "Call_ind";
       assert (Array.length i.arg >= 1);
@@ -338,13 +349,13 @@ let emit_instruction i =
 
     | Lop(Icall_imm { func; label_after; }) -> 
       emit_comment "Call imm";
-      emit_call func;
+      emit_call_to_OCaml func;
       `{record_frame i.live false i.dbg ~label:label_after}\n`;
     | Lop(Itailcall_ind { label_after = _; }) -> 
       emit_comment "Tailcall_ind";
       output_epilogue begin fun () ->
         if !contains_calls then
-          (` addi a0, sp, -4\n`; (* TODO: check this out*)
+          ( ` addi a0, sp, -4\n`; (* TODO: check this out*)
             ` l32i	a0, a0, 0\n`);
         `	jx	{emit_reg i.arg.(0)}\n`
       end
@@ -356,18 +367,18 @@ let emit_instruction i =
         output_epilogue begin fun () ->
           if !contains_calls then
             (` addi a0, sp, -4\n`; (* TODO: check this out*)
-              ` l32i	a0, a0, 0\n`);
-          `	{emit_jump func}\n`
+             ` l32i	a0, a0, 0\n`);
+          ` j	{emit_symbol func}\n`
         end
       end
       
     | Lop(Iextcall { func; alloc = false;}) -> 
       emit_comment "Extcall";
-      `	{emit_call func}\n`
+      `	{emit_call_to_C func}\n`
     | Lop(Iextcall { func; alloc = true; label_after; }) -> 
       emit_comment "Extcall alloc";
-      emit_symbol_const (phys_reg 6 (* a8 *)) func;
-      `	{emit_call "caml_c_call"}\n`;
+      emit_load_symbol (phys_reg 7 (* a9 *)) func;
+      `	{emit_call_to_OCaml "caml_c_call"}\n`;
       `{record_frame i.live false i.dbg ~label:label_after}\n`
     | Lop(Istackoffset n) -> 
       emit_comment "Stackoffset";
@@ -382,8 +393,8 @@ let emit_instruction i =
       assert (Array.length i.arg >= 1);
       let addr' = offset_addressing addr 4 in
       begin
-        `	l32i	{emit_reg i.res.(0)}, {emit_addressing addr i.arg 0}\n`;
-        `	l32i	{emit_reg i.res.(1)}, {emit_addressing addr' i.arg 0}\n`
+        `	l32{emit_addressing_mode addr}	{emit_reg i.res.(0)}, {emit_addressing addr i.arg 0}\n`;
+        `	l32{emit_addressing_mode addr'}	{emit_reg i.res.(1)}, {emit_addressing addr' i.arg 0}\n`
       end
     | Lop(Iload(size, addr)) -> 
       emit_comment "Load";
@@ -392,46 +403,46 @@ let emit_instruction i =
       let r = i.res.(0) in
         let instr =
           match size with
-            Byte_unsigned -> "l8ui"
+            Byte_unsigned -> "l8u"
           | Byte_signed -> assert false
-          | Sixteen_unsigned -> "l16ui"
-          | Sixteen_signed -> "l16si"
-          | _ (* 32-bit quantities *) -> "l32i" in
-        `	{emit_string instr}	{emit_reg r}, {emit_addressing addr i.arg 0}\n`;
+          | Sixteen_unsigned -> "l16u"
+          | Sixteen_signed -> "l16s"
+          | _ (* 32-bit quantities *) -> "l32" in
+        `	{emit_string instr}{emit_addressing_mode addr}	{emit_reg r}, {emit_addressing addr i.arg 0}\n`;
     | Lop(Istore((Double | Double_u), addr, _)) -> 
       emit_comment "Store double";
       assert (Array.length i.arg >= 3);
       let addr' = offset_addressing addr 4 in
       begin
-        `	s32i	{emit_reg i.arg.(0)}, {emit_addressing addr i.arg 2}\n`;
-        `	s32i	{emit_reg i.arg.(1)}, {emit_addressing addr' i.arg 2}\n`
+        `	s32{emit_addressing_mode addr}	{emit_reg i.arg.(0)}, {emit_addressing addr i.arg 2}\n`;
+        `	s32{emit_addressing_mode addr'}	{emit_reg i.arg.(1)}, {emit_addressing addr' i.arg 2}\n`
       end
     | Lop(Istore(size, addr, _)) -> 
       emit_comment "Store";
       let r = i.arg.(0) in
       let instr =
         match size with
-          Byte_unsigned -> "s8i"
-        | Byte_signed -> "s8i"
-        | Sixteen_unsigned -> "s16i"
-        | Sixteen_signed -> "s16i"
-        | _ (* 32-bit quantities *) -> "s32i" in
-      `	{emit_string instr}	{emit_reg r}, {emit_addressing addr i.arg 1}\n`;
+          Byte_unsigned -> "s8"
+        | Byte_signed -> "s8"
+        | Sixteen_unsigned -> "s16"
+        | Sixteen_signed -> "s16"
+        | _ (* 32-bit quantities *) -> "s32" in
+      `	{emit_string instr}{emit_addressing_mode addr}	{emit_reg r}, {emit_addressing addr i.arg 1}\n`;
     | Lop(Ialloc { words = n; label_after_call_gc; }) ->
       emit_comment "Alloc";
       let lbl_frame = 
         record_frame_label i.live false i.dbg ?label:label_after_call_gc
       in 
-      let lbl_redo = new_label() in 
-      `{emit_label lbl_redo}:\n`;
-      `	addi	{emit_string alloc_ptr}, {emit_string alloc_ptr}, -{emit_int n}\n`;
-      `	addi	{emit_reg i.res.(0)}, {emit_string alloc_ptr}, 4\n`;
-      let lbl_call_gc = new_label() in 
-      ` bge   {emit_string alloc_ptr}, {emit_string alloc_limit}, {emit_label lbl_call_gc}\n`;
-      call_gc_sites := 
-        { gc_lbl = lbl_call_gc;
-          gc_return_lbl = lbl_redo;
-          gc_frame_lbl = lbl_frame } :: !call_gc_sites;
+      begin match n with
+        8 ->  `	{emit_call_to_OCaml "caml_alloc1"}\n`
+      | 12 -> `	{emit_call_to_OCaml "caml_alloc2"}\n`
+      | 16 -> `	{emit_call_to_OCaml "caml_alloc3"}\n`
+      |  _ -> emit_int_const (phys_reg 0) (Int32.of_int n);
+              `	{emit_call_to_OCaml "caml_allocN"}\n`
+      end;
+      `{emit_label lbl_frame}: \n`;
+      ` rfr   {emit_reg i.res.(0)}, f1\n`;
+      ` addi  {emit_reg i.res.(0)},{emit_reg i.res.(0)},4\n`
     | Lop(Iintop(Icomp cmp)) -> 
       emit_comment "Comparison";
       assert (Array.length i.arg >= 2);
@@ -484,8 +495,8 @@ let emit_instruction i =
     | Lop(Ispecific(_)) ->  ``
     | Lreloadretaddr -> 
       emit_comment "Reloadretaddr";
-      let n = frame_size() in
-      `	l32i	a0, a1, {emit_int(n-4)}\n`
+      let n = frame_size() in (* First local variable is saved return address. *)
+      `	l32i	a0, sp, {emit_int(n-4)}\n`
     | Lreturn -> 
       emit_comment "Return";
       output_epilogue begin fun () -> ` ret \n` end
@@ -556,30 +567,30 @@ let emit_instruction i =
     | Lpushtrap -> 
       emit_comment "Push trap";
       stack_offset := !stack_offset + 8;
-      ` addi sp, sp, 8\n`;
-      `	s32i a0, sp, 0\n`;
-      ` s32i {emit_string trap_ptr}, sp, 4\n`;
+      ` addi    sp, sp, -8\n`;
+      ` ssi     f0, sp, 0\n`; (* Store trap pointer *)
+      ` s32i    a0, sp, 4\n`; (* Store return *)
       cfi_adjust_cfa_offset 8;
-      `	mov	{emit_string trap_ptr}, sp\n`
-    | Lpoptrap -> 
+      ` wfr     f0, sp\n`;  (* Save new trap pointer *)
+    | Lpoptrap -> (* a0 is not popped back but it's okay because saved by setjmp *)
       emit_comment "Pop trap";
-      `	l32i a0, sp, 0\n`;
-      ` l32i {emit_string trap_ptr}, sp, 4\n`;
-      ` addi sp, sp, -8\n`;
+      ` lsi     f0, sp, 0\n`; (* Load trap pointer *)
+      ` l32i    a0, sp, 4\n`; (* Load return *)
+      ` addi    sp, sp, 8\n`;
       cfi_adjust_cfa_offset (-8);
-      stack_offset := !stack_offset - 8
+      stack_offset := !stack_offset - 8;
     | Lraise(kind) ->
       emit_comment "Raise"; 
       begin match kind with 
       | Cmm.Raise_withtrace -> 
-        `	{emit_call "caml_raise_exn"}\n`;
+        `	{emit_call_to_OCaml "caml_raise_exn"}\n`;
         `{record_frame Reg.Set.empty true i.dbg}\n`
       | Cmm.Raise_notrace ->
-        ` mov sp, {emit_string trap_ptr}\n`;
-        ` l32i a11, sp, 0\n`;
-        ` l32i {emit_string trap_ptr}, sp, 4\n`;
-        ` addi sp, sp, -8\n`;
-        ` jx a11\n`
+        ` rfr     sp, f0 \n`; (* Load trap pointer *)
+        ` lsi     f0, sp, 0\n`; (* Load previous trap pointer *)
+        ` l32i    a0, sp, 4\n`; (* Load return address *)
+        ` addi    sp, sp, 8\n`; (* Cut stack *)
+        ` ret\n`; (* Jump to a0. *)
       end
 
 
@@ -665,6 +676,7 @@ let end_assembly () =
   `	.long	0\n`;
   let lbl = Compilenv.make_symbol (Some "frametable") in
   `	.globl	{emit_symbol lbl}\n`;
+  ` .align 4\n`;
   `{emit_symbol lbl}:\n`;
   emit_frames
     { efa_code_label = (fun lbl ->

@@ -30,42 +30,22 @@ let word_addressed = false
 
 (* Registers available for register allocation *)
 
-
-
-(*
+(* 
   Integer register map:
     a0       return address
     a1       stack pointer
-    a2 - a11 general purpose (not preserved)
-    a11      scratch register (not preserved) 
-    a12      trap pointer (preserved) 
-    a13      allocation pointer (preserved) 
-    a14      allocation limit (preserved) 
-    a15      (preserved) 
+    a2 - a7  general purpose (preserved on call)
+    a8 - a15 general purpose (not preserved)
+    
+    f0       trap pointer (preserved) 
+    f1       allocation pointer (preserved) 
+    f2       allocation limit (preserved) 
 *)
-(* 
- * Calling conventions
- * Beginning with CALL0 ABI (xtensa.pdf: 613).
- * a0 Return Address
- * a1 (sp) Stack Pointer (callee-saved)
- * a2 – a7 Function Arguments
- * a8 Static Chain (see Section 8.1.8)
- * a12 – a15 Callee-saved
- * a15 Stack-Frame Pointer (optional)
- *)
 
 let int_reg_name =
-  [| "a2"; "a3"; "a4"; "a5"; "a6"; "a7"; "a8"; "a9"; "a10"; "a11"; "a15"|]
+  [|"a2"; "a3"; "a4"; "a5"; "a6"; "a7"; 
+    "a8"; "a9"; "a10"; "a11"; "a12"; "a13"; "a14"; "a15"|]
 
-
-(* let mac_reg_name =
-  [| "m0"; "m1"; "m2"; "m3";|]
-*)
-(*
-let float_reg_name =
-  [| "f0"; "f2"; "f4"; "f6"; "f1"; "f3"; "f5"; "f7";
-     "f8"; "f9"; "f10"; "f11"; "f12"; "f13"; "f14"; "f15" |]
-*)
 
 let num_register_classes = 1
 
@@ -74,19 +54,19 @@ let register_class r =
   | Val | Int | Addr -> 0
   | Float -> 0
 
-let num_available_registers = [| 11 |]
+let num_available_registers = [| 14 |]
 
 let first_available_register = [| 0 |]
 
-let register_name r = assert (r < 11);int_reg_name.(r)
+let register_name r = assert (r < 14);int_reg_name.(r)
 
 let rotate_registers = true
 
 (* Representation of hard registers by pseudo-registers *)
 
 let hard_int_reg =
-  let v = Array.make 11 Reg.dummy in
-  for i = 0 to 10 do v.(i) <- Reg.at_location Int (Reg i) done; v
+  let v = Array.make 14 Reg.dummy in
+  for i = 0 to 13 do v.(i) <- Reg.at_location Int (Reg i) done; v
 
 let all_phys_regs = hard_int_reg
 
@@ -152,6 +132,13 @@ let ensure_single_regs res =
       | _ -> failwith "Proc.ensure_single_regs")
     res
 
+(* 
+ * Calling conventions CALL0 ABI
+ * a0 Return Address
+ * a1 sp (preserved)
+ * a2 – a7 Function Arguments
+ *)
+
 let loc_arguments arg = 
   let (loc, alignment) = 
     calling_conventions 0 5 outgoing (single_regs arg) 
@@ -171,27 +158,45 @@ let loc_results res =
   ensure_single_regs loc 
 
 
-let loc_external_results = loc_results
+(* 
+ * Calling conventions CALL8 ABI
+ * a8 Return Address
+ * a9 Callee's stack pointer (set by ENTRY)
+ * a10 – a15 Function Arguments
+ * Return in a10 – a13
+ *)
+
+let loc_external_results res = 
+  let (loc, _ofs) = 
+    calling_conventions 0 3 not_supported (single_regs res)
+  in
+  ensure_single_regs loc 
 
 let loc_external_arguments arg = 
   calling_conventions 0 5 outgoing arg 
 
+(* a2 *)
 let loc_exn_bucket = phys_reg 0
 
 let regs_are_volatile _rs = false 
 
-(* let destroyed_at_c_call =
+
+let _call12_destroyed = 
   Array.of_list(List.map phys_reg 
-    [ 0;2;3;4;5;6;7;8;9;10;11;15;
-      100;101;102;103;104;105;106;107;
-      108;109;110;111;112;113;114;115])
+    [10; 11; 12; 13])
 
+let _call8_destroyed = 
+  Array.of_list(List.map phys_reg 
+    [6; 7; 8; 9; 10; 11; 12; 13])
 
-let destroyed_at_alloc = [|phys_reg 2|]
-*)
+let _call4_destroyed = 
+  Array.of_list(List.map phys_reg 
+    [2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13])
 
-(* TODO: Fix this *)
 let destroyed_at_oper = function
+  | Iop(Icall_ind _ | Icall_imm _) -> all_phys_regs
+  | Iop(Iextcall _) -> all_phys_regs
+  | Iop(Ialloc _) -> all_phys_regs
   | _ -> [||]
 
 let destroyed_at_raise = all_phys_regs
@@ -199,12 +204,12 @@ let destroyed_at_raise = all_phys_regs
 (* Maximal register pressure *)
 
 let safe_register_pressure = function
-    Iextcall _ -> 11
-  | _ -> 11
+  | Iextcall _ -> 0
+  | Icall_ind _ | Icall_imm _ -> 0
+  | Ialloc _ -> 0
+  | _ -> 14
 
-let max_register_pressure = function
-    Iextcall _ -> [| 11 |]
-  | _ -> [| 11 |]
+let max_register_pressure arg = [| safe_register_pressure arg |]
 
 (* Pure operations (without any side effect besides updating their result
    registers). *)
@@ -212,7 +217,7 @@ let max_register_pressure = function
 let op_is_pure = function
   | Icall_ind _ | Icall_imm _ | Itailcall_ind _ | Itailcall_imm _
   | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _
-  | Iintop(Icheckbound _) | Iintop_imm(Icheckbound _, _) -> false
+  | Iintop(Icheckbound _) | Iintop_imm(Icheckbound _, _)
   | Ispecific _ -> false
   | _ -> true
 
