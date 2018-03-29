@@ -1,8 +1,6 @@
 open Arch
 open Cmm
-open Reg
 open Mach
-open Selectgen
 
 let is_offset chunk n = match chunk with 
   | Byte_unsigned | Byte_signed -> n >= 0 && n <= 255
@@ -88,29 +86,6 @@ method select_addressing chunk = function
       (Iindexed n, Cop(op, [arg1; arg2], dbg))
   | arg -> 
       (Iindexed 0, arg)
-
-method! emit_stores env data regs_addr =
-  let a =
-    ref Arch.identity_addressing in
-  List.iter
-    (fun e ->
-      let (op, arg) = self#select_store false !a e in
-      match self#emit_expr env arg with
-        None -> assert false
-      | Some regs ->
-          match op with
-            Istore(_, _, _) ->
-              for i = 0 to Array.length regs - 1 do
-                let r = regs.(i) in
-                let kind = if r.typ = Float then Double_u else Word_val in
-                self#insert (Iop(Istore(kind, !a, false)))
-                            (Array.append [|r|] regs_addr) [||];
-                a := Arch.offset_addressing !a (size_component r.typ)
-              done
-          | _ ->
-              self#insert (Iop op) (Array.append regs regs_addr) [||];
-              a := Arch.offset_addressing !a (size_expr env e))
-    data
 
 end 
 
