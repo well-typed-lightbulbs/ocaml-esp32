@@ -197,6 +197,9 @@ let destroyed_at_oper = function
   | Iop(Icall_ind _ | Icall_imm _) -> all_phys_regs
   | Iop(Iextcall _) -> all_phys_regs
   | Iop(Ialloc _) -> all_phys_regs
+  | Iop(Istackoffset _) -> [|phys_reg 13|] (* a15 is used as scratch *)
+  | Iop(Itailcall_imm _) -> [|phys_reg 13|]
+  | Iop(Itailcall_ind _) -> [|phys_reg 13|]
   | _ -> [||]
 
 let destroyed_at_raise = all_phys_regs

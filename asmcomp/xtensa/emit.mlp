@@ -287,9 +287,15 @@ let emit_stack r =
     `sp, {emit_int ofs}`
   | _ -> fatal_error "Emit_xtensa.emit_stack"
 
+(* Because of windowed abi, must use movsp. *)
 let emit_stack_adjustment n =
   if n = 0 then () else begin
-    `	addi	sp, sp, {emit_int n}\n`;
+    `	wfr 	f5, a0\n`;
+    `	movi a15, 2\n`; (* Call8 emulation. *)
+    `	slli a0, a15, 30\n`;
+    `	addi	a15, sp, {emit_int n}\n`;
+    `	movsp	sp, a15\n`;
+    `	rfr 	a0, f5\n`;
   end
 
 
@@ -567,7 +573,7 @@ let emit_instruction i =
     | Lpushtrap -> 
       emit_comment "Push trap";
       stack_offset := !stack_offset + 8;
-      `	addi	sp, sp, -8\n`;
+      emit_stack_adjustment (-8);
       `	ssi 	f0, sp, 0\n`; (* Store trap pointer *)
       `	s32i	a0, sp, 4\n`; (* Store return *)
       cfi_adjust_cfa_offset 8;
@@ -576,7 +582,7 @@ let emit_instruction i =
       emit_comment "Pop trap";
       `	lsi 	f0, sp, 0\n`; (* Load trap pointer *)
       `	l32i	a0, sp, 4\n`; (* Load return *)
-      `	addi	sp, sp, 8\n`;
+      emit_stack_adjustment 8;
       cfi_adjust_cfa_offset (-8);
       stack_offset := !stack_offset - 8;
     | Lraise(kind) ->
@@ -589,7 +595,7 @@ let emit_instruction i =
         `	rfr 	sp, f0 \n`; (* Load trap pointer *)
         `	lsi 	f0, sp, 0\n`; (* Load previous trap pointer *)
         `	l32i	a0, sp, 4\n`; (* Load return address *)
-        `	addi	sp, sp, 8\n`; (* Cut stack *)
+        emit_stack_adjustment 8;
         `	ret\n`; (* Jump to a0. *)
       end
 
