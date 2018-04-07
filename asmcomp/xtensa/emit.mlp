@@ -183,7 +183,7 @@ let flush_strings () =
 
 let emit_load_symbol register symbol = 
   let n = new_label () in
-  `.literal	{emit_label n}, {emit_string symbol}\n`;
+  `.literal	{emit_label n}, {emit_symbol symbol}\n`;
   `	l32r	{emit_reg register}, {emit_label n}\n`
 
 (* Actually, no need to flush them at once as the assembler can do it itself..*)
