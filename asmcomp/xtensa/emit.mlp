@@ -242,22 +242,22 @@ let emit_if_then_else cmp_type r1 r2 label_then label_else =
     match cmp_type with 
     | Cmp op -> 
       `	{emit_string (op^cmp_suffix)} 	{emit_reg r1}, {emit_r2 ()}, {emit_label label_goto_then} \n`;
-      `	j	{emit_label label_goto_else}\n`
+      `	j.l 	{emit_label label_goto_else}, a15\n`
     | CmpNor (op1, op2) -> 
       `	{emit_string (op1^cmp_suffix)} 	{emit_reg r1}, {emit_r2 ()}, {emit_label label_goto_else} \n`;
       `	{emit_string (op2^cmp_suffix)} 	{emit_reg r1}, {emit_r2 ()}, {emit_label label_goto_else} \n`;
-      `	j	{emit_label label_then}\n`
+      `	j.l 	{emit_label label_then}, a15\n`
     | CmpOr (op1, op2) -> 
       `	{emit_string (op1^cmp_suffix)} 	{emit_reg r1}, {emit_r2 ()}, {emit_label label_goto_then} \n`;
       `	{emit_string (op2^cmp_suffix)} 	{emit_reg r1}, {emit_r2 ()}, {emit_label label_goto_then} \n`;
-      `	j {emit_label label_goto_else}\n`
+      `	j.l 	{emit_label label_goto_else}, a15\n`
   end;
   `{emit_label label_goto_then}:\n`;
-  `	j	{emit_label label_then}\n`;
+  `	j.l 	{emit_label label_then}, a15\n`;
   `{emit_label label_goto_else}:\n`;
   match label_else with 
   | None -> ``
-  | Some lbl -> `	j	{emit_label lbl}\n`
+  | Some lbl -> `	j.l 	{emit_label lbl}, a15\n`
 
 let name_for_int_operation = function 
   | Iadd  -> "add", false
@@ -368,13 +368,13 @@ let emit_instruction i =
     | Lop(Itailcall_imm { func; label_after = _;}) ->
       emit_comment "Tailcall_imm"; 
       if func = !function_name then begin
-        `	j   	{emit_label !tailrec_entry_point}\n`
+        `	j.l  	{emit_label !tailrec_entry_point}, a15\n`
       end else begin
         output_epilogue begin fun () ->
           if !contains_calls then
             (`	addi	a0, sp, -4\n`; (* TODO: check this out*)
              `	l32i	a0, a0, 0\n`);
-          `	j   	{emit_symbol func}\n`
+          `	j.l  	{emit_symbol func}, a15\n`
         end
       end
       
@@ -458,7 +458,7 @@ let emit_instruction i =
       emit_if_then_else cmp i.arg.(0) (Register i.arg.(1)) label_1 (Some label_0);
       `{emit_label label_0}:\n`;
       `	movi	{emit_reg i.res.(0)}, 0\n`;
-      `	j	{emit_label label_end}\n`;
+      `	j.l	{emit_label label_end}, a15\n`;
       `{emit_label label_1}:\n`;
       `	movi	{emit_reg i.res.(0)}, 1\n`;
       `{emit_label label_end}:\n`;
@@ -471,7 +471,7 @@ let emit_instruction i =
       emit_if_then_else cmp i.arg.(0) (Immediate n) label_1 (Some label_0);
       `{emit_label label_0}:\n`;
       `	movi	{emit_reg i.res.(0)}, 0\n`;
-      `	j	{emit_label label_end}\n`;
+      `	j.l	{emit_label label_end}, a15\n`;
       `{emit_label label_1}:\n`;
       `	movi	{emit_reg i.res.(0)}, 1\n`;
       `{emit_label label_end}:\n`;
@@ -511,7 +511,7 @@ let emit_instruction i =
       emit_label label; `:\n`;
     | Lbranch(label) -> 
       emit_comment "Branch";
-      `	j	{emit_label label}\n`; 
+      `	j.l 	{emit_label label}, a15\n`; 
     | Lcondbranch(tst, lbl) -> 
       emit_comment "Condbranch";
       assert (Array.length i.arg >= 1);
@@ -543,7 +543,7 @@ let emit_instruction i =
         begin 
           `	blti	{emit_reg i.arg.(0)}, 1, {emit_label end_label}\n`;
           `	beqi	{emit_reg i.arg.(0)}, 1, {emit_label end_label}\n`;
-          `	j	{emit_label lbl}\n`;
+          `	j.l	{emit_label lbl}, a15\n`;
           emit_label end_label; `:\n`;
         end
       end;
