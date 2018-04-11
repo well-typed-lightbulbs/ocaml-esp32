@@ -42,8 +42,6 @@ method select_operation_softfp op args dbg =
     | (Cmulf, args) -> (self#iextcall("__muldf3", false), args)
     | (Cdivf, args) -> (self#iextcall("__divdf3", false), args)
     | (Csubf, args) -> (self#iextcall("__subdf3", false), args)
-    | (Cabsf, args) -> (self#iextcall("__absdf2", false), args)
-    | (Cnegf, args) -> (self#iextcall("__negdf2", false), args)
     | (Cfloatofint, args) -> (self#iextcall("__floatsidf", false), args)
     | (Cintoffloat, args) -> (self#iextcall("__fixdfsi", false), args)
     | (Ccmpf comp, args) ->

@@ -359,10 +359,9 @@ let emit_instruction i =
       `{record_frame i.live false i.dbg ~label:label_after}\n`;
     | Lop(Itailcall_ind { label_after = _; }) -> 
       emit_comment "Tailcall_ind";
+      if !contains_calls then (* Reload ret addr *)
+        `	l32i	a0, sp, {emit_int (frame_size() - 4)}\n`;
       output_epilogue begin fun () ->
-        if !contains_calls then
-          ( `	addi	a0, sp, -4\n`; (* TODO: check this out*)
-            `	l32i	a0, a0, 0\n`);
         `	jx  	{emit_reg i.arg.(0)}\n`
       end
     | Lop(Itailcall_imm { func; label_after = _;}) ->
@@ -370,10 +369,9 @@ let emit_instruction i =
       if func = !function_name then begin
         `	j.l  	{emit_label !tailrec_entry_point}, a15\n`
       end else begin
+        if !contains_calls then (* Reload ret addr *)
+          `	l32i	a0, sp, {emit_int (frame_size() - 4)}\n`;
         output_epilogue begin fun () ->
-          if !contains_calls then
-            (`	addi	a0, sp, -4\n`; (* TODO: check this out*)
-             `	l32i	a0, a0, 0\n`);
           `	j.l  	{emit_symbol func}, a15\n`
         end
       end
@@ -493,7 +491,16 @@ let emit_instruction i =
       emit_comment "Intop_imm";
       let instr,_ = name_for_int_operation op in 
       `	{emit_string instr}i	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_int n}\n`
-    | Lop(Iabsf | Inegf as _op) -> assert false (* Implemented by runtime ABI call *)
+    | Lop(Inegf) ->
+      `	wfr 	f8, {emit_reg i.arg.(0)}\n`;
+      `	neg.s	f8, f8\n`;
+      `	mov 	{emit_reg i.res.(1)}, {emit_reg i.arg.(1)}\n`;
+      `	rfr 	{emit_reg i.res.(0)}, f8\n`;
+    | Lop(Iabsf) -> 
+      `	wfr 	f8, {emit_reg i.arg.(0)}\n`;
+      `	abs.s	f8, f8\n`;
+      `	mov 	{emit_reg i.res.(1)}, {emit_reg i.arg.(1)}\n`;
+      `	rfr 	{emit_reg i.res.(0)}, f8\n`;
     | Lop(Ifloatofint) -> assert false (* Implemented by runtime ABI call *)
     | Lop(Iintoffloat) -> assert false (* Implemented by runtime ABI call *)
     | Lop(Iaddf | Isubf | Imulf | Idivf as _op) -> assert false (* Implemented by runtime ABI call *)
