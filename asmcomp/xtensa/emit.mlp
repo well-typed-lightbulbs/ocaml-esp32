@@ -70,6 +70,10 @@ let emit_addressing_mode = function
   | Iindexed ofs when ofs < 0 -> `e`
   | _ -> `i`
 
+let same_location l1 l2 = match l1, l2 with 
+  | Reg i1, Reg i2 -> i1 == i2 
+  | _, _ -> false
+
 (* Addressing relative to a register. Can only be positive *)
 let emit_addressing addr r n = 
   match addr with
@@ -138,7 +142,7 @@ let call_gc_sites = ref ([] : gc_call list)
 
 let emit_call_gc gc =
   `{emit_label gc.gc_lbl}:	{emit_call_to_OCaml "caml_call_gc"}\n`;
-  `{emit_label gc.gc_frame_lbl}:	j	{emit_label gc.gc_return_lbl}\n`
+  `{emit_label gc.gc_frame_lbl}:	j.l	{emit_label gc.gc_return_lbl}, a15\n`
 
 (* Record calls to caml_ml_array_bound_error.
    In debug mode, we maintain one call to caml_ml_array_bound_error
@@ -392,13 +396,18 @@ let emit_instruction i =
         stack_offset := !stack_offset + n;
       end
     | Lop(Iload((Double | Double_u), addr)) -> 
-      emit_comment "Load double";
+      emit_comment "Load double\n";
       assert (Array.length i.res >= 2);
       assert (Array.length i.arg >= 1);
       let addr' = offset_addressing addr 4 in
       begin
-        `	l32{emit_addressing_mode addr}	{emit_reg i.res.(0)}, {emit_addressing addr i.arg 0}\n`;
-        `	l32{emit_addressing_mode addr'}	{emit_reg i.res.(1)}, {emit_addressing addr' i.arg 0}\n`
+        if same_location i.res.(0).loc i.arg.(0).loc then begin (* Avoid address overwrite *)
+          `	l32{emit_addressing_mode addr'}	{emit_reg i.res.(1)}, {emit_addressing addr' i.arg 0}\n`;
+          `	l32{emit_addressing_mode addr}	{emit_reg i.res.(0)}, {emit_addressing addr i.arg 0}\n`
+        end else begin
+          `	l32{emit_addressing_mode addr}	{emit_reg i.res.(0)}, {emit_addressing addr i.arg 0}\n`;
+          `	l32{emit_addressing_mode addr'}	{emit_reg i.res.(1)}, {emit_addressing addr' i.arg 0}\n`
+        end
       end
     | Lop(Iload(size, addr)) -> 
       emit_comment "Load";
@@ -414,12 +423,12 @@ let emit_instruction i =
           | _ (* 32-bit quantities *) -> "l32" in
         `	{emit_string instr}{emit_addressing_mode addr}	{emit_reg r}, {emit_addressing addr i.arg 0}\n`;
     | Lop(Istore((Double | Double_u), addr, _)) -> 
-      emit_comment "Store double";
+      emit_comment "Store double\n";
       assert (Array.length i.arg >= 3);
       let addr' = offset_addressing addr 4 in
       begin
         `	s32{emit_addressing_mode addr}	{emit_reg i.arg.(0)}, {emit_addressing addr i.arg 2}\n`;
-        `	s32{emit_addressing_mode addr'}	{emit_reg i.arg.(1)}, {emit_addressing addr' i.arg 2}\n`
+        `	s32{emit_addressing_mode addr'}	{emit_reg i.arg.(1)}, {emit_addressing addr' i.arg 2}\n`;
       end
     | Lop(Istore(size, addr, _)) -> 
       emit_comment "Store";
@@ -446,7 +455,7 @@ let emit_instruction i =
       end;
       `{emit_label lbl_frame}: \n`;
       `	rfr 	{emit_reg i.res.(0)}, f1\n`;
-      `	addi	{emit_reg i.res.(0)},{emit_reg i.res.(0)},4\n`
+      `	addi	{emit_reg i.res.(0)}, {emit_reg i.res.(0)}, 4\n`
     | Lop(Iintop(Icomp cmp)) -> 
       emit_comment "Comparison";
       assert (Array.length i.arg >= 2);
@@ -558,12 +567,11 @@ let emit_instruction i =
       emit_comment "Switch"; 
       let switch_label = new_label () in
       let __switch_label = new_label () in
-      `	slli	a3, {emit_reg i.arg.(0)}, 2\n`; (* Multiply switch dest by 4 *)
       `.literal	{emit_label __switch_label}, {emit_label switch_label}\n`;
-      `	l32r	a2, {emit_label __switch_label}\n`; (* Load base address of labels *)
-      `	add 	a2, a3, a2\n`; (* Add offset *)
-      `	l32i	a2, a2, 0\n`; (* Load label address *)
-      `	jx  	a2\n`; (* Jump to label *)
+      `	l32r	a15, {emit_label __switch_label}\n`; (* Load base address of labels in a15 *)
+      `	addx4	a15, {emit_reg i.arg.(0)}, a15\n`; (* arg.(0)*4 + a15 *)
+      `	l32i	a15, a15, 0\n`; (* Load label address *)
+      `	jx  	a15\n`; (* Jump to label *)
       `.section	.rodata\n`;
       `.align	4\n`;
       emit_label switch_label; `:\n`;
@@ -575,8 +583,8 @@ let emit_instruction i =
       let veneer = new_label () in 
       emit_comment "Setup trap"; 
       `.literal	{emit_label veneer}, {emit_label label}\n`;
-      `	l32r	a11, {emit_label veneer}\n`;
-      `	callx0	a11\n`
+      `	l32r	a15, {emit_label veneer}\n`;
+      `	callx0	a15\n`
     | Lpushtrap -> 
       emit_comment "Push trap";
       stack_offset := !stack_offset + 8;
