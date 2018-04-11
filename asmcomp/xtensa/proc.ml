@@ -35,7 +35,8 @@ let word_addressed = false
     a0       return address
     a1       stack pointer
     a2 - a7  general purpose (preserved on call)
-    a8 - a15 general purpose (not preserved)
+    a8 - a14 general purpose (not preserved)
+    a15      scratch register
     
     f0       trap pointer (preserved) 
     f1       allocation pointer (preserved) 
@@ -44,7 +45,7 @@ let word_addressed = false
 
 let int_reg_name =
   [|"a2"; "a3"; "a4"; "a5"; "a6"; "a7"; 
-    "a8"; "a9"; "a10"; "a11"; "a12"; "a13"; "a14"; "a15"|]
+    "a8"; "a9"; "a10"; "a11"; "a12"; "a13"; "a14"|]
 
 
 let num_register_classes = 1
@@ -54,19 +55,19 @@ let register_class r =
   | Val | Int | Addr -> 0
   | Float -> 0
 
-let num_available_registers = [| 14 |]
+let num_available_registers = [| 13 |]
 
 let first_available_register = [| 0 |]
 
-let register_name r = assert (r < 14);int_reg_name.(r)
+let register_name r = assert (r < 13);int_reg_name.(r)
 
 let rotate_registers = true
 
 (* Representation of hard registers by pseudo-registers *)
 
 let hard_int_reg =
-  let v = Array.make 14 Reg.dummy in
-  for i = 0 to 13 do v.(i) <- Reg.at_location Int (Reg i) done; v
+  let v = Array.make 13 Reg.dummy in
+  for i = 0 to 12 do v.(i) <- Reg.at_location Int (Reg i) done; v
 
 let all_phys_regs = hard_int_reg
 
@@ -183,23 +184,20 @@ let regs_are_volatile _rs = false
 
 let _call12_destroyed = 
   Array.of_list(List.map phys_reg 
-    [10; 11; 12; 13])
+    [10; 11; 12])
 
 let _call8_destroyed = 
   Array.of_list(List.map phys_reg 
-    [6; 7; 8; 9; 10; 11; 12; 13])
+    [6; 7; 8; 9; 10; 11; 12])
 
 let _call4_destroyed = 
   Array.of_list(List.map phys_reg 
-    [2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13])
+    [2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12])
 
 let destroyed_at_oper = function
   | Iop(Icall_ind _ | Icall_imm _) -> all_phys_regs
   | Iop(Iextcall _) -> all_phys_regs
   | Iop(Ialloc _) -> all_phys_regs
-  | Iop(Istackoffset _) -> [|phys_reg 13|] (* a15 is used as scratch *)
-  | Iop(Itailcall_imm _) -> [|phys_reg 13|]
-  | Iop(Itailcall_ind _) -> [|phys_reg 13|]
   | _ -> [||]
 
 let destroyed_at_raise = all_phys_regs
@@ -210,7 +208,7 @@ let safe_register_pressure = function
   | Iextcall _ -> 0
   | Icall_ind _ | Icall_imm _ -> 0
   | Ialloc _ -> 0
-  | _ -> 14
+  | _ -> 13
 
 let max_register_pressure arg = [| safe_register_pressure arg |]
 
