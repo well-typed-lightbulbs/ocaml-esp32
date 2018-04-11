@@ -41,6 +41,7 @@ let word_addressed = false
     f0       trap pointer (preserved) 
     f1       allocation pointer (preserved) 
     f2       allocation limit (preserved) 
+    f8       temp float for neg/abs
 *)
 
 let int_reg_name =
