@@ -158,11 +158,11 @@ caml_c_call:
     ssi     f0, a13, 0
 /* Call the C function. a0-a3 are saved. */
     callx4  a4
-/* Reload alloc ptr and alloc limit */
+/* Reload alloc ptr and alloc limit into registers */
     l32r    a12, __caml_young_ptr
     l32r    a13, __caml_young_limit
-    ssi     f1, a12, 0
-    ssi     f2, a13, 0
+    lsi     f1, a12, 0
+    lsi     f2, a13, 0
 /* Return */
     ret
     .type   caml_c_call, %function
