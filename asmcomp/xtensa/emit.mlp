@@ -195,8 +195,8 @@ let generate_comparison_op = function
 | Iunsigned Ceq ->  Cmp ("beq" ) | Iunsigned Cne ->  Cmp ("bne" ) | Iunsigned Cle -> CmpOr("bltu","beq")
 | Iunsigned Cge ->  Cmp ("bgeu") | Iunsigned Clt ->  Cmp ("bltu") | Iunsigned Cgt -> CmpNor("bltu","beq")
 
-let emit_comment _str = ``
-  (*` #{emit_string str}\n`*)
+let emit_comment str = 
+  `	### {emit_string str} ###\n`
 
 
 type imm_reg = Immediate of int | Register of Reg.t
@@ -509,7 +509,7 @@ let emit_instruction i =
       emit_comment "Branch";
       `	j.l 	{emit_label label}, a15\n`; 
     | Lcondbranch(tst, lbl) -> 
-      emit_comment "Condbranch";
+      emit_comment ("Condbranch -> .LC"^(string_of_int lbl));
       assert (Array.length i.arg >= 1);
       let cmp, op2 = match tst with
         | Itruetest -> (Cmp "bne", Immediate 0)
@@ -522,7 +522,7 @@ let emit_instruction i =
       in 
       emit_if_then_else cmp i.arg.(0) op2 lbl None 
     | Lcondbranch3(br1, br2, br3) -> 
-      emit_comment "Condbranch 3";
+      emit_comment ("Condbranch 3");
       assert (Array.length i.arg >= 1);
       let end_label = new_label () in 
       begin match br1 with
@@ -615,6 +615,7 @@ let fundecl fundecl =
   `.global	{emit_symbol fundecl.fun_name}\n`;
   `.type	{emit_symbol fundecl.fun_name}, @function\n`;
   `{emit_symbol fundecl.fun_name}:\n`;
+  emit_debug_info fundecl.fun_dbg;
   cfi_startproc();
   let n = frame_size() in
   if n > 0 then begin
@@ -632,7 +633,8 @@ let fundecl fundecl =
   List.iter emit_call_gc !call_gc_sites;
   List.iter emit_call_bound_error !bound_error_sites;
   cfi_endproc();
-  ()
+  `	.type	{emit_symbol fundecl.fun_name}, %function\n`;
+  `	.size	{emit_symbol fundecl.fun_name}, .-{emit_symbol fundecl.fun_name}\n`
 
 
 (* Emission of data *)
