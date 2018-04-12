@@ -256,8 +256,10 @@ let name_for_int_operation = function
   | Iasr  -> "sra", true
   | _ -> assert false
 
-let emit_fill_shift_register reg = 
-  `	wsr	{emit_reg reg}, 3\n`
+let emit_fill_shift_register instr reg = match instr with 
+  | Ilsl -> `	ssl	{emit_reg reg}\n`
+  | Iasr | Ilsr -> `	ssr	{emit_reg reg}\n`
+  | _ -> assert false
 
 
     
@@ -472,7 +474,7 @@ let emit_instruction i =
       emit_comment "Intop";
       let instr, sar = name_for_int_operation op in
       (match sar with 
-      | true ->  emit_fill_shift_register i.arg.(1); `	{emit_string instr} 	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+      | true ->  emit_fill_shift_register op i.arg.(1); `	{emit_string instr} 	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
       | false -> `	{emit_string instr} 	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`)
     | Lop(Iintop_imm(op, n)) -> 
       emit_comment "Intop_imm";
