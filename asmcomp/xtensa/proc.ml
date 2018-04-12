@@ -161,21 +161,22 @@ let loc_results res =
 
 
 (* 
- * Calling conventions CALL8 ABI
- * a8 Return Address
- * a9 Callee's stack pointer (set by ENTRY)
- * a10 – a15 Function Arguments
- * Return in a10 – a13
+ * Calling conventions CALL4 ABI
+ * a4 Return Address
+ * a5 Callee's stack pointer (set by ENTRY)
+ * a6 – a11 Function Arguments
+ * Return in a6 – a9
+ * a2 and a3 are saved.
  *)
 
 let loc_external_results res = 
   let (loc, _ofs) = 
-    calling_conventions 0 3 not_supported (single_regs res)
+    calling_conventions 4 7 not_supported (single_regs res)
   in
   ensure_single_regs loc 
 
 let loc_external_arguments arg = 
-  calling_conventions 0 5 outgoing arg 
+  calling_conventions 4 9 outgoing arg 
 
 (* a2 *)
 let loc_exn_bucket = phys_reg 0
@@ -197,7 +198,7 @@ let _call4_destroyed =
 
 let destroyed_at_oper = function
   | Iop(Icall_ind _ | Icall_imm _) -> all_phys_regs
-  | Iop(Iextcall _) -> all_phys_regs
+  | Iop(Iextcall _) -> all_phys_regs (* when call4 is used, a2 and a3 are actually saved.. *)
   | Iop(Ialloc _) -> all_phys_regs
   | _ -> [||]
 
