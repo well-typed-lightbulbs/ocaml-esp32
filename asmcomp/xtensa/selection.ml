@@ -45,8 +45,16 @@ method select_operation_softfp op args dbg =
     | (Cfloatofint, args) -> (self#iextcall("__floatsidf", false), args)
     | (Cintoffloat, args) -> (self#iextcall("__fixdfsi", false), args)
     | (Ccmpf comp, args) ->
+        let fn = match comp with 
+          | Ceq -> "__eqdf2"
+          | Cne -> "__nedf2"
+          | Clt -> "__ltdf2"
+          | Cle -> "__ledf2"
+          | Cgt -> "__gtdf2"
+          | Cge -> "__gedf2"
+        in
         (Iintop_imm(Icomp(Isigned comp), 0),
-        [Cop(Cextcall("__eqdf2", typ_int, false, None), args, dbg)])
+        [Cop(Cextcall(fn, typ_int, false, None), args, dbg)])
     | (Cload (Single, mut), args) ->
       (self#iextcall("__extendsfdf2", false),
         [Cop(Cload (Word_int, mut), args, dbg)])
