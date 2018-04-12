@@ -11,10 +11,6 @@ open Misc
 
 (* Emission of Xtensa LX6 assembly code *)
 
-type literal = 
-  | Double of (int32 * int32) 
-  | Single of int32
-
 let stack_offset = ref 0
 
 let frame_size () =
@@ -41,30 +37,30 @@ let emit_reg = function
 
 let emit_int_const dst i = 
   let n = new_label () in
-  pending_literals := (n, Single i) :: !pending_literals;
+  `.literal	{emit_label n}, {emit_int32 i}\n`;
   `	l32r	{emit_reg dst}, {emit_label n}\n`
 
-let emit_float_const dst_hi dst_lo f = 
+let emit_float_const dst_lo dst_hi f = 
   let n = new_label () 
   and high_bits = Int64.to_int32 (Int64.shift_right_logical f 32)
   and low_bits = Int64.to_int32 f in 
-  pending_literals := (n, Double (low_bits, high_bits)) :: !pending_literals;
+  `.literal	{emit_label n}, {emit_int32 low_bits}, {emit_int32 high_bits}\n`;
   `	l32r	{emit_reg dst_lo}, {emit_label n}\n`;
   `	l32r	{emit_reg dst_hi}, {emit_label n}+4\n`
 
-(* Call to C using CALL8 ABI - a8 is destroyed *)
+(* Call to C using CALL4 ABI *)
 let emit_call_to_C s =
   let veneer = new_label () in 
   `.literal	{emit_label veneer}, {emit_symbol s}\n`;
-  `	l32r	a8, {emit_label veneer}\n`;
-  `	callx8	a8\n`
+  `	l32r	a15, {emit_label veneer}\n`;
+  `	callx4	a15\n`
 
-(* Call to C using CALL0 ABI - a8 is destroyed *)
+(* Call to C using CALL0 ABI *)
 let emit_call_to_OCaml s =
   let veneer = new_label () in 
   `.literal	{emit_label veneer}, {emit_symbol s}\n`;
-  `	l32r	a8, {emit_label veneer}\n`;
-  `	callx0	a8\n`
+  `	l32r	a15, {emit_label veneer}\n`;
+  `	callx0	a15\n`
 
 let emit_addressing_mode = function 
   | Iindexed ofs when ofs < 0 -> `e`
@@ -190,24 +186,6 @@ let emit_load_symbol register symbol =
   `.literal	{emit_label n}, {emit_symbol symbol}\n`;
   `	l32r	{emit_reg register}, {emit_label n}\n`
 
-(* Actually, no need to flush them at once as the assembler can do it itself..*)
-let flush_literals () = 
-  `.text\n`;
-  let rec write_literal = function 
-    | [] -> ()
-    | (label, item) :: next -> 
-    begin
-      `.literal	{emit_label label}, `;
-      begin match item with 
-        | Single i -> emit_int32 i 
-        | Double (i1, i2) -> emit_int32 i1; `, `; emit_int32 i2
-      end;
-      `\n`;
-      write_literal next;
-    end 
-  in 
-  write_literal !pending_literals;
-  pending_literals := []
 
 type comparison_op = Cmp of string | CmpOr of (string * string) | CmpNor of (string * string)
 
@@ -385,7 +363,7 @@ let emit_instruction i =
       `	{emit_call_to_C func}\n`
     | Lop(Iextcall { func; alloc = true; label_after; }) -> 
       emit_comment "Extcall alloc";
-      emit_load_symbol (phys_reg 7 (* a9 *)) func;
+      emit_load_symbol (phys_reg 2 (* a4 *)) func;
       `	{emit_call_to_OCaml "caml_c_call"}\n`;
       `{record_frame i.live false i.dbg ~label:label_after}\n`
     | Lop(Istackoffset n) -> 
@@ -501,15 +479,15 @@ let emit_instruction i =
       let instr,_ = name_for_int_operation op in 
       `	{emit_string instr}i	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_int n}\n`
     | Lop(Inegf) ->
-      `	wfr 	f8, {emit_reg i.arg.(0)}\n`;
+      `	wfr 	f8, {emit_reg i.arg.(1)}\n`;
       `	neg.s	f8, f8\n`;
-      `	mov 	{emit_reg i.res.(1)}, {emit_reg i.arg.(1)}\n`;
-      `	rfr 	{emit_reg i.res.(0)}, f8\n`;
+      `	mov 	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`;
+      `	rfr 	{emit_reg i.res.(1)}, f8\n`;
     | Lop(Iabsf) -> 
-      `	wfr 	f8, {emit_reg i.arg.(0)}\n`;
+      `	wfr 	f8, {emit_reg i.arg.(1)}\n`;
       `	abs.s	f8, f8\n`;
-      `	mov 	{emit_reg i.res.(1)}, {emit_reg i.arg.(1)}\n`;
-      `	rfr 	{emit_reg i.res.(0)}, f8\n`;
+      `	mov 	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`;
+      `	rfr 	{emit_reg i.res.(1)}, f8\n`;
     | Lop(Ifloatofint) -> assert false (* Implemented by runtime ABI call *)
     | Lop(Iintoffloat) -> assert false (* Implemented by runtime ABI call *)
     | Lop(Iaddf | Isubf | Imulf | Idivf as _op) -> assert false (* Implemented by runtime ABI call *)
@@ -647,7 +625,8 @@ let fundecl fundecl =
   `{emit_label !tailrec_entry_point}:\n`;
   emit_all fundecl.fun_body;
   flush_strings ();
-  flush_literals ();
+  `.text\n`;
+  `.literal_position\n`;
   List.iter emit_call_gc !call_gc_sites;
   List.iter emit_call_bound_error !bound_error_sites;
   cfi_endproc();

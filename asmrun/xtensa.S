@@ -138,44 +138,31 @@ caml_allocN:
 
 /* Call a C function from OCaml
 -> Called using CALL0 ABI.
-a2 to a7 contains function arguments
-a9 contains C function to call.
--> C is called using CALL8 ABI.
-a10 to a15 must contain function arguments
+a6 to a11 contains function arguments
+a4 contains C function to call.
+a2 and a3 should be saved.
+-> C is called using CALL4 ABI.
 */
     .align  4
     .globl  caml_c_call
 caml_c_call:
-    mov     a8, a9
 /* Record lowest stack address and return address */
-    l32r    a9, __caml_last_return_address
-    l32r    a10, __caml_bottom_of_stack
-    s32i    a0, a9, 0
-    s32i    sp, a10, 0
+    l32r    a12, __caml_last_return_address
+    l32r    a13, __caml_bottom_of_stack
+    s32i    a0, a12, 0
+    s32i    sp, a13, 0
 /* Make the exception handler alloc ptr available to the C code */
-    l32r    a9, __caml_young_ptr
-    l32r    a10, __caml_exception_pointer
-    ssi     f1, a9, 0
-    ssi     f0, a10, 0
-/* Move arguments for C ABI call */
-    mov     a10, a2
-    mov     a11, a3
-    mov     a12, a4
-    mov     a13, a5
-    mov     a14, a6
-    mov     a15, a7
-/* Call the C function. a0-a7 are saved. */
-    callx8  a8
-/* Move results back */
-    mov     a2, a10
-    mov     a3, a11
-    mov     a4, a12
-    mov     a5, a13
+    l32r    a12, __caml_young_ptr
+    l32r    a13, __caml_exception_pointer
+    ssi     f1, a12, 0
+    ssi     f0, a13, 0
+/* Call the C function. a0-a3 are saved. */
+    callx4  a4
 /* Reload alloc ptr and alloc limit */
-    l32r    a9, __caml_young_ptr
-    l32r    a10, __caml_young_limit
-    ssi     f1, a9, 0 /* a9 still points to caml_young_ptr */
-    ssi     f2, a10, 0
+    l32r    a12, __caml_young_ptr
+    l32r    a13, __caml_young_limit
+    ssi     f1, a12, 0
+    ssi     f2, a13, 0
 /* Return */
     ret
     .type   caml_c_call, %function
