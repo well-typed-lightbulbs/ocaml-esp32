@@ -222,19 +222,24 @@ caml_start_program:
     l32r    a8, __caml_exception_pointer
     l32i    a9, sp, 0
     s32i    a9, a8, 0
+    addi    a15, sp, 16
+/* Fake call8 for correct movsp */
+    movi    a0, 2
+    slli	a0, a0, 30
+    movsp   sp, a15
 /* Pop the callback link, restoring the global variables */
 .Lreturn_result:
     l32r    a8, __caml_bottom_of_stack
-    l32i    a9, sp, 16
+    l32i    a9, sp, 0
     s32i    a9, a8, 0
     l32r    a8, __caml_last_return_address
-    l32i    a9, sp, 20
+    l32i    a9, sp, 4
     s32i    a9, a8, 0
     l32r    a8, __caml_gc_regs
-    l32i    a9, sp, 24
+    l32i    a9, sp, 8
     s32i    a9, a8, 0
 /* Return address */
-    l32i    a0, sp, 28
+    l32i    a0, sp, 12
 /* Update allocation pointer */
     l32r    a8, __caml_young_ptr
     ssi     f1, a8, 0
@@ -282,7 +287,18 @@ caml_raise_exn:
     rfr     a9, f0
     call4   caml_stash_backtrace
 1:
-    rfr     a0, f0 /* Read trap handler dest */
+/* Cut stack at current trap handler */
+    rfr     a15, f0
+/* Pop previous trap handler */
+    lsi     f0, a15, 0
+/* Load trap destination */
+    lsi     f0, a15, 4
+/* Set new stack using movsp and a fake call8 */
+    movi    a14, 2
+    slli    a0, a14, 30
+    addi    a15, a15, 16
+    movsp   sp, a15
+    rfr     a0, f5
     ret
     .literal_position
 

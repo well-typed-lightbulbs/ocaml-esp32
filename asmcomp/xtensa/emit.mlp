@@ -282,7 +282,6 @@ let emit_stack_adjustment n =
     `	rfr 	a0, f5\n`;
   end
 
-
 let output_epilogue f =
   let n = frame_size() in
   if n > 0 then begin
@@ -587,13 +586,16 @@ let emit_instruction i =
         `{emit_call_to_OCaml "caml_raise_exn"}\n`;
         `{record_frame Reg.Set.empty true i.dbg}\n`
       | Cmm.Raise_notrace ->
-        `	rfr 	sp, f0 \n`; (* Load trap pointer *)
-        `	lsi 	f0, sp, 0\n`; (* Load previous trap pointer *)
-        `	l32i	a0, sp, 4\n`; (* Load return address *)
-        emit_stack_adjustment 16;
+        `	rfr 	a15, f0 \n`; (* Load trap pointer *)
+        `	lsi 	f0, a15, 0\n`; (* Load previous trap pointer *)
+        `	lsi 	f5, a15, 4\n`; (* Load return address in f5 *)
+        `	movi	a14, 2\n`; (* Fake call8. *)
+        `	slli	a0, a14, 30\n`;
+        `	addi	a15, a15, 16\n`;
+        `	movsp	sp, a15\n`;
+        `	rfr 	a0, f5\n`;
         `	ret\n`; (* Jump to a0. *)
       end
-
 
 
 
