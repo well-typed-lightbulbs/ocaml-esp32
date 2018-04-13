@@ -174,7 +174,7 @@ caml_c_call:
     .align  4
     .globl  caml_start_program
 caml_start_program:
-    entry   sp, 4*(4+6+8)
+    entry   sp, 3*16
 .literal __caml_program, caml_program
     l32r    a11, __caml_program
 
@@ -185,7 +185,7 @@ caml_start_program:
 
  /* Base windowed call is 16 bytes
   * Stack uses 16 bytes for bottom, last_return, gc, a0
-  * + 8 bytes for caml_exception_pointer, .Ltrap_handler
+  * + 16 bytes for trap: caml_exception_pointer, .Ltrap_handler
   */
 .Ljump_to_caml:
 /* Setup a callback link on the stack */
@@ -195,11 +195,11 @@ caml_start_program:
     l32i    a8, a8, 0
     l32i    a9, a9, 0
     l32i    a10, a10, 0
-    s32i    a8, sp, 8
-    s32i    a9, sp, 12
-    s32i    a10, sp, 16
+    s32i    a8, sp, 16
+    s32i    a9, sp, 20
+    s32i    a10, sp, 24
 /* Save return address */
-    s32i    a0, sp, 20
+    s32i    a0, sp, 28
 /* Setup a trap frame to catch exceptions escaping the OCaml code */
     l32r    a8, __caml_exception_pointer
     .literal .trap_handler, trap_handler
@@ -225,16 +225,16 @@ caml_start_program:
 /* Pop the callback link, restoring the global variables */
 .Lreturn_result:
     l32r    a8, __caml_bottom_of_stack
-    l32i    a9, sp, 0
+    l32i    a9, sp, 16
     s32i    a9, a8, 0
     l32r    a8, __caml_last_return_address
-    l32i    a9, sp, 4
+    l32i    a9, sp, 20
     s32i    a9, a8, 0
     l32r    a8, __caml_gc_regs
-    l32i    a9, sp, 8
+    l32i    a9, sp, 24
     s32i    a9, a8, 0
 /* Return address */
-    l32i    a0, sp, 20
+    l32i    a0, sp, 28
 /* Update allocation pointer */
     l32r    a8, __caml_young_ptr
     ssi     f1, a8, 0
@@ -288,19 +288,18 @@ caml_raise_exn:
 
 
 /* Raise an exception from C */
+
 /* Check window stuff */
     .align 4
     .globl caml_raise_exception
 caml_raise_exception:
-    entry   sp, 4*4
-/* Set windowstart bit */
-    rsr.windowbase a12
-    movi.n  a11, 1
-    ssl     a12
-    sll     a11, a11
-    wsr.windowstart a11
-    rsync
-/* Reload trap ptr, alloc ptr and alloc limit */
+    entry   sp, 16
+/* Spill all registers on stack. saving a2 */
+    mov     a4, a2
+    movi    a2, 0
+    syscall
+    mov a2, a4
+/* Reload trap ptr, alloc ptr and alloc limit in f0, f1, f2 */
     l32r    a12, __caml_exception_pointer
     l32r    a13, __caml_young_ptr
     l32r    a14, __caml_young_limit
@@ -310,20 +309,53 @@ caml_raise_exception:
 /* Test if backtrace is active */
     l32r    a3, __caml_backtrace_active
     l32i    a3, a3, 0
-    l32i    a3, a3, 0
-    beqz    a3, 1f
-/* Give exception bucket as argument */
+    beqz    a3, 1f 
+/* Preserve exception bucket in callee-save register a2 */
     mov     a6, a2
-/* Stash the backtrace */
     l32r    a7, __caml_last_return_address
     l32i    a7, a7, 0
     l32r    a8, __caml_bottom_of_stack
     l32i    a8, a8, 0
     rfr     a9, f0
-    call4   caml_stash_backtrace
+    call4   caml_stash_backtrace 
 1:
-    rfr     a0, f0 /* Read trap handler dest */
-    ret
+/* Cut stack at bottom of stack before C call to get back caller's spilled registers */
+    l32r    a15, __caml_bottom_of_stack
+    l32i    sp, a15, 0
+/* Under SP there are 4 spilled registers of OCaml code caller */
+
+/* Find stack pointer at current trap handler */
+    rfr     a15, f0
+/* Pop previous trap handler */
+    lsi     f0, a15, 0
+/* Load trap destination */
+    l32i    a0, a15, 4
+/* Erase two high bits */
+    slli    a0, a0, 2
+    srli    a0, a0, 2
+/* Set as call4 */
+    movi    a3, 1
+    slli    a3, a3, 30
+    or      a0, a3, a0
+/* a15 holds new stack pointer */
+    addi    a15, a15, 16
+/* under a15 there will be a0-a3 registers updated on OCaml retw */
+/* under sp there will be a0-a3 registers updated on exception retw */
+    .globl after_syscall
+after_syscall:
+    l32e    a11, sp, -4 
+    l32e    a12, sp, -8 
+    l32e    a13, sp, -12
+    l32e    a14, sp, -16
+    s32e    a11, a15, -4 
+    s32e    a12, a15, -8 
+    s32e    a13, a15, -12
+    s32e    a14, a15, -16
+/* Store trap sp, that will be set in register on window underflow */
+    s32e    a15, sp, -12 /* a1 */
+    s32e    a2, sp, -8 /* a2 */
+/* Jump on trap handler and underflow, restoring stack pointer. */
+    retw
 
     .type   caml_raise_exception, %function
     .size   caml_raise_exception, .-caml_raise_exception
@@ -334,7 +366,7 @@ caml_raise_exception:
     .align  4
     .globl  caml_callback_exn
 caml_callback_exn:
-    entry   sp, (4+6+8)*4
+    entry   sp, 3*16
 /* Initial shuffling of argments (a2 = closure, a3 = first arg) */
     mov     a11, a2
     mov     a2, a3      /* a2 = first arg */
@@ -349,7 +381,7 @@ caml_callback_exn:
     .align  4
     .globl  caml_callback2_exn
 caml_callback2_exn:
-    entry   sp, (4+6+8)*4
+    entry   sp, 3*16
 /* Initial shuffling of argments (a2 = closure, a3 = arg1, a4 = arg2) */
     mov     a11, a2
     mov     a2, a3      /* a2 = first arg */
@@ -365,7 +397,7 @@ caml_callback2_exn:
     .align  4
     .globl  caml_callback3_exn
 caml_callback3_exn:
-    entry   sp, (4+6+8)*4
+    entry   sp, 3*16
 /* Initial shuffling of argments (a2 = closure, a3 = arg1, a4 = arg2, a5 = arg3) */
     mov     a11, a2
     mov     a2, a3      /* a2 = first arg */
