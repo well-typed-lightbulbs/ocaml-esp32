@@ -567,19 +567,19 @@ let emit_instruction i =
       `	callx0	a15\n`
     | Lpushtrap -> 
       emit_comment "Push trap";
-      stack_offset := !stack_offset + 8;
-      emit_stack_adjustment (-8);
+      stack_offset := !stack_offset + 16;
+      emit_stack_adjustment (-16);
       `	ssi 	f0, sp, 0\n`; (* Store trap pointer *)
       `	s32i	a0, sp, 4\n`; (* Store return *)
-      cfi_adjust_cfa_offset 8;
+      cfi_adjust_cfa_offset 16;
       `	wfr 	f0, sp\n`;  (* Save new trap pointer *)
-    | Lpoptrap -> (* a0 is not popped back but it's okay because saved by setjmp *)
+    | Lpoptrap ->
       emit_comment "Pop trap";
       `	lsi 	f0, sp, 0\n`; (* Load trap pointer *)
       `	l32i	a0, sp, 4\n`; (* Load return *)
-      emit_stack_adjustment 8;
-      cfi_adjust_cfa_offset (-8);
-      stack_offset := !stack_offset - 8;
+      emit_stack_adjustment 16;
+      cfi_adjust_cfa_offset (-16);
+      stack_offset := !stack_offset - 16;
     | Lraise(kind) ->
       emit_comment "Raise"; 
       begin match kind with 
@@ -590,7 +590,7 @@ let emit_instruction i =
         `	rfr 	sp, f0 \n`; (* Load trap pointer *)
         `	lsi 	f0, sp, 0\n`; (* Load previous trap pointer *)
         `	l32i	a0, sp, 4\n`; (* Load return address *)
-        emit_stack_adjustment 8;
+        emit_stack_adjustment 16;
         `	ret\n`; (* Jump to a0. *)
       end
 
