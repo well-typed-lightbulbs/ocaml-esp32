@@ -60,12 +60,12 @@ include stdlib/StdlibModules
 
 CAMLC=$(CAMLRUN) boot/ocamlc -g -nostdlib -I boot -use-prims byterun/primitives
 CAMLOPT=$(CAMLRUN) ./ocamlopt -g -nostdlib -I stdlib -I otherlibs/dynlink
-ARCHES=amd64 i386 arm arm64 power s390x xtensa
+ARCHES=amd64 i386 arm arm64 power s390x
 INCLUDES=-I utils -I parsing -I typing -I bytecomp -I middle_end \
         -I middle_end/base_types -I asmcomp -I asmcomp/debug \
         -I driver -I toplevel
 
-COMPFLAGS=-verbose -strict-sequence -principal -absname -w +a-4-9-41-42-44-45-48 \
+COMPFLAGS=-strict-sequence -principal -absname -w +a-4-9-41-42-44-45-48 \
 	  -warn-error A \
           -bin-annot -safe-string -strict-formats $(INCLUDES)
 LINKFLAGS=
@@ -390,21 +390,29 @@ coldstart:
 	cp byterun/ocamlrun$(EXE) boot/ocamlrun$(EXE)
 	$(MAKE) -C yacc $(BOOT_FLEXLINK_CMD) all
 	cp yacc/ocamlyacc$(EXE) boot/ocamlyacc$(EXE)
-	cd boot; $(LN) ../byterun/libcamlrun.$(A) .
-
-.PHONY: coldstart-stdlib 
-coldstart-stdlib: byterun/primitives
-	$(MAKE) -C byterun caml/version.h
 	$(MAKE) -C stdlib $(BOOT_FLEXLINK_CMD) \
 	  COMPILER="../boot/ocamlc -use-prims ../byterun/primitives" all
 	cd stdlib; cp $(LIBFILES) ../boot
+	cd boot; $(LN) ../byterun/libcamlrun.$(A) .
 
+.PHONY: coldstart-cross
+coldstart-cross: 
+	$(MAKE) -C byterun $(BOOT_FLEXLINK_CMD) all
+	$(MAKE) -C stdlib $(BOOT_FLEXLINK_CMD) \
+	  COMPILER="../boot/ocamlc -use-prims ../byterun/primitives" all
+	cd stdlib; cp $(LIBFILES) ../boot
+	cd boot; $(LN) ../byterun/libcamlrun.$(A) .
 
 # Recompile the core system using the bootstrap compiler
 .PHONY: coreall
 coreall:
 	$(MAKE) ocamlc
 	$(MAKE) ocamllex ocamlyacc ocamltools library
+
+.PHONY: coreall-cross
+coreall-cross:
+	$(MAKE) ocamlc
+	$(MAKE) library
 
 # Build the core system: the minimum needed to make depend and bootstrap
 .PHONY: core
@@ -461,7 +469,7 @@ cleanboot:
 
 # Compile the native-code compiler
 .PHONY: opt-core
-opt-core: coldstart-stdlib ocamlc runtimeopt
+opt-core: runtimeopt
 	$(MAKE) ocamlopt
 	$(MAKE) libraryopt
 
@@ -470,7 +478,6 @@ opt:
 	$(MAKE) runtimeopt
 	$(MAKE) ocamlopt
 	$(MAKE) libraryopt
-	$(MAKE) -C tools ocamlmklib
 	$(MAKE) otherlibrariesopt ocamltoolsopt
 
 # Native-code versions of the tools
@@ -518,6 +525,15 @@ all: runtime
 	$(MAKE) ocaml
 	$(MAKE) otherlibraries $(WITH_DEBUGGER) $(WITH_OCAMLDOC) ocamltest
 
+.PHONY: all-cross
+all-cross: runtime
+	$(MAKE) coreall-cross
+	$(MAKE) otherlibraries-cross
+	$(MAKE) ocaml
+	$(MAKE) runtimeopt
+	$(MAKE) ocamlopt
+	$(MAKE) libraryopt
+
 # Bootstrap and rebuild the whole system.
 # The compilation of ocaml will fail if the runtime has changed.
 # Never mind, just do make bootstrap to reach fixpoint again.
@@ -529,12 +545,18 @@ bootstrap: coreboot
 # Compile everything the first time
 
 .PHONY: world
-world: coldstart coldstart-stdlib
+world: coldstart
 	$(MAKE) all
+
+# Compile everything for cross-compilation
+
+.PHONY: world-cross
+world-cross: coldstart-cross
+	$(MAKE) all-cross
 
 # Compile also native code compiler and libraries, fast
 .PHONY: world.opt
-world.opt: coldstart coldstart-stdlib
+world.opt: coldstart
 	$(MAKE) opt.opt
 
 # FlexDLL sources missing error messages
@@ -665,16 +687,39 @@ endif
 	   $(LN) ocamllex.byte$(EXE) ocamllex$(EXE); \
 	fi
 
-# Installation of the native-code compiler core
-.PHONY: installopt-core
-installopt-core:
+.PHONY: install-cross
+install-cross:
 	$(MKDIR) "$(INSTALL_BINDIR)"
 	$(MKDIR) "$(INSTALL_LIBDIR)"
 	$(MKDIR) "$(INSTALL_STUBLIBDIR)"
 	$(MKDIR) "$(INSTALL_COMPLIBDIR)"
+	cp VERSION "$(INSTALL_LIBDIR)"
+	cp ocaml "$(INSTALL_BINDIR)/ocaml$(EXE)"
+	cp ocamlc "$(INSTALL_BINDIR)/ocamlc.byte$(EXE)"
+	$(MAKE) -C stdlib install
+	cp utils/*.cmi utils/*.cmt utils/*.cmti utils/*.mli \
+	   parsing/*.cmi parsing/*.cmt parsing/*.cmti parsing/*.mli \
+	   typing/*.cmi typing/*.cmt typing/*.cmti typing/*.mli \
+	   bytecomp/*.cmi bytecomp/*.cmt bytecomp/*.cmti bytecomp/*.mli \
+	   driver/*.cmi driver/*.cmt driver/*.cmti driver/*.mli \
+	   toplevel/*.cmi toplevel/*.cmt toplevel/*.cmti toplevel/*.mli \
+	   "$(INSTALL_COMPLIBDIR)"
+	cp compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma \
+	   compilerlibs/ocamltoplevel.cma $(BYTESTART) $(TOPLEVELSTART) \
+	   "$(INSTALL_COMPLIBDIR)"
+	cp expunge "$(INSTALL_LIBDIR)/expunge$(EXE)"
+	cp config/Makefile "$(INSTALL_LIBDIR)/Makefile.config"
+	if test -f ocamlopt; then $(MAKE) installopt-cross; else \
+	   cd "$(INSTALL_BINDIR)"; \
+	   $(LN) ocamlc.byte$(EXE) ocamlc$(EXE); \
+	   $(LN) ocamllex.byte$(EXE) ocamllex$(EXE); \
+	fi
+
+# Installation of the native-code compiler
+.PHONY: installopt
+installopt:
 	$(MAKE) -C asmrun install
 	cp ocamlopt "$(INSTALL_BINDIR)/ocamlopt.byte$(EXE)"
-	$(MAKE) -C stdlib install
 	$(MAKE) -C stdlib installopt
 	$(INSTALL_DATA) \
 	    middle_end/*.cmi \
@@ -697,11 +742,6 @@ installopt-core:
 	if test -n "$(WITH_OCAMLDOC)"; then \
 	  $(MAKE) -C ocamldoc installopt; \
 	fi
-
-
-# Installation of the native-code compiler
-.PHONY: installopt
-installopt: installopt-core
 	for i in $(OTHERLIBRARIES); do \
 	  $(MAKE) -C otherlibs/$$i installopt || exit $$?; \
 	done
@@ -715,6 +755,30 @@ installopt: installopt-core
 	if test -f ocamlopt.opt -a -f flexdll/flexlink.opt ; then \
 	  $(INSTALL_PROG) \
 	    flexdll/flexlink.opt "$(INSTALL_BINDIR)/flexlink$(EXE)" ; \
+	fi
+
+.PHONY: installopt-cross
+installopt-cross:
+	$(MAKE) -C asmrun install
+	cp ocamlopt "$(INSTALL_BINDIR)/ocamlopt.byte$(EXE)"
+	$(MAKE) -C stdlib installopt
+	cp middle_end/*.cmi middle_end/*.cmt middle_end/*.cmti \
+	    middle_end/*.mli \
+		"$(INSTALL_COMPLIBDIR)"
+	cp middle_end/base_types/*.cmi middle_end/base_types/*.cmt \
+	    middle_end/base_types/*.cmti middle_end/base_types/*.mli \
+		"$(INSTALL_COMPLIBDIR)"
+	cp asmcomp/*.cmi asmcomp/*.cmt asmcomp/*.cmti asmcomp/*.mli \
+		"$(INSTALL_COMPLIBDIR)"
+	cp compilerlibs/ocamloptcomp.cma $(OPTSTART) "$(INSTALL_COMPLIBDIR)"
+	if test -f ocamlopt.opt ; then $(MAKE) installoptopt; else \
+	   cd "$(INSTALL_BINDIR)"; \
+	   $(LN) ocamlc.byte$(EXE) ocamlc$(EXE); \
+	   $(LN) ocamlopt.byte$(EXE) ocamlopt$(EXE); \
+	   $(LN) ocamllex.byte$(EXE) ocamllex$(EXE); \
+	fi
+	if test -f ocamlopt.opt -a -f flexdll/flexlink.opt ; then \
+	  cp -f flexdll/flexlink.opt "$(INSTALL_BINDIR)/flexlink$(EXE)" ; \
 	fi
 
 .PHONY: installoptopt
@@ -1018,7 +1082,7 @@ endif
 # The runtime system for the native-code compiler
 
 .PHONY: runtimeopt
-runtimeopt: coldstart-stdlib stdlib/libasmrun.$(A)
+runtimeopt: stdlib/libasmrun.$(A)
 
 .PHONY: makeruntimeopt
 makeruntimeopt:
@@ -1101,6 +1165,12 @@ partialclean::
 
 .PHONY: otherlibraries
 otherlibraries: ocamltools
+	for i in $(OTHERLIBRARIES); do \
+	  ($(MAKE) -C otherlibs/$$i all) || exit $$?; \
+	done
+
+.PHONY: otherlibraries-cross
+otherlibraries-cross:
 	for i in $(OTHERLIBRARIES); do \
 	  ($(MAKE) -C otherlibs/$$i all) || exit $$?; \
 	done
