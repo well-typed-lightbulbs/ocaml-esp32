@@ -500,8 +500,11 @@ case "$cc,$target" in
     # No -lm library
     mathlib="";;
   *,*-esp32-*)
-    # hacky
+    # optimize for size on embedded devices
     common_cppflags="-Os"
+    # Can't directly build executables
+    mkexe="$mkexe -c" 
+    unix_or_win32=""
     ldflags="-nostdlib -lgcc -lm";;
   *,*-*-beos*)
     # No -lm library
@@ -1040,6 +1043,7 @@ case "$arch,$cc,$system,$model" in
   power,gcc*,elf,ppc)   partialld="ld -r -m elf32ppclinux";;
   power,gcc*,elf,ppc64)   partialld="ld -r -m elf64ppc";;
   power,gcc*,elf,ppc64le)   partialld="ld -r -m elf64lppc";;
+  xtensa,*,*,*)   partialld="${TOOLPREF}ld -r";;
 esac
 
 asppprofflags='-DPROFILING'
@@ -1240,7 +1244,7 @@ fi
 
 case "$system" in
   mingw) unix_or_win32="win32"; unixlib="win32unix"; graphlib="win32graph";;
-  *) unix_or_win32="unix"; unixlib=""; graphlib="graph";; # Hacky esp32
+  *) unix_or_win32="unix"; unixlib=""; graphlib="graph";; 
 esac
 
 config UNIX_OR_WIN32 "$unix_or_win32"
@@ -1253,6 +1257,7 @@ otherlibraries="$unixlib str dynlink bigarray"
 
 case "$arch" in
     none) ;;
+    xtensa) otherlibraries="str";;
     *)
       if $arch64; then
         otherlibraries="$otherlibraries raw_spacetime_lib"
