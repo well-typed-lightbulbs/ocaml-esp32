@@ -415,6 +415,7 @@ esac
 # with ocamlc.
 
 mkexe="\$(CC) \$(CFLAGS) \$(CPPFLAGS) \$(LDFLAGS)"
+outputexe="-o \$(EMPTY)"
 mkexedebugflag="-g"
 common_cflags=""
 common_cppflags=""
@@ -496,7 +497,8 @@ case "$cc,$target" in
     # optimize for size on embedded devices
     common_cppflags="-Os"
     # Can't directly build executables
-    mkexe="$mkexe -c" 
+    outputexe="-c -o \$(EMPTY)"
+    mkexe="$mkexe -c"
     unix_or_win32=""
     ldflags="-nostdlib -lgcc -lm";;
   *,*-*-beos*)
@@ -2078,7 +2080,7 @@ config BYTECCLIBS "$cclibs $dllib $curseslibs $pthread_link \
 config RPATH "$rpath"
 config EXE "$exe"
 config EMPTY ""
-config OUTPUTEXE "-o \$(EMPTY)"
+config OUTPUTEXE "$outputexe"
 config SUPPORTS_SHARED_LIBRARIES "$shared_libraries_supported"
 config SHAREDCCCOMPOPTS "$sharedcccompopts"
 config MKSHAREDLIBRPATH "$mksharedlibrpath"

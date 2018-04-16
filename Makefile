@@ -551,11 +551,12 @@ all: runtime
 .PHONY: all-cross
 all-cross: runtime
 	$(MAKE) coreall-cross
-	$(MAKE) otherlibraries-cross
+	$(MAKE) otherlibraries
 	$(MAKE) ocaml
 	$(MAKE) runtimeopt
 	$(MAKE) ocamlopt
 	$(MAKE) libraryopt
+	$(MAKE) otherlibrariesopt
 
 # Bootstrap and rebuild the whole system.
 # The compilation of ocaml will fail if the runtime has changed.
@@ -707,9 +708,12 @@ install-cross:
 	$(MKDIR) "$(INSTALL_STUBLIBDIR)"
 	$(MKDIR) "$(INSTALL_COMPLIBDIR)"
 	cp VERSION "$(INSTALL_LIBDIR)"
+	touch byterun/ocamlrun
+	$(MAKE) -C byterun install
 	cp ocaml "$(INSTALL_BINDIR)/ocaml$(EXE)"
 	cp ocamlc "$(INSTALL_BINDIR)/ocamlc.byte$(EXE)"
 	$(MAKE) -C stdlib install
+	cp lex/ocamllex "$(INSTALL_BINDIR)/ocamllex.byte$(EXE)"
 	cp utils/*.cmi utils/*.cmt utils/*.cmti utils/*.mli \
 	   parsing/*.cmi parsing/*.cmt parsing/*.cmti parsing/*.mli \
 	   typing/*.cmi typing/*.cmt typing/*.cmti typing/*.mli \
@@ -721,8 +725,30 @@ install-cross:
 	   compilerlibs/ocamltoplevel.cma $(BYTESTART) $(TOPLEVELSTART) \
 	   "$(INSTALL_COMPLIBDIR)"
 	cp expunge "$(INSTALL_LIBDIR)/expunge$(EXE)"
+	cp toplevel/topdirs.cmi toplevel/topdirs.cmt toplevel/topdirs.cmti \
+           toplevel/topdirs.mli "$(INSTALL_LIBDIR)"
+	$(MAKE) -C tools install
+ifeq "$(UNIX_OR_WIN32)" "unix" # Install manual pages only on Unix
+	$(MKDIR) "$(INSTALL_MANDIR)/man$(PROGRAMS_MAN_SECTION)"
+	-$(MAKE) -C man install
+endif
+	for i in $(OTHERLIBRARIES); do \
+	  $(MAKE) -C otherlibs/$$i install || exit $$?; \
+	done
+# Transitional: findlib 1.7.3 is confused if leftover num.cm? files remain
+# from an previous installation of OCaml before otherlibs/num was removed.
+	rm -f "$(INSTALL_LIBDIR)"/num.cm?
+# End transitional
+	if test -n "$(WITH_DEBUGGER)"; then \
+	  $(MAKE) -C debugger install; \
+	fi
+ifeq "$(UNIX_OR_WIN32)" "win32"
+	if test -n "$(FLEXDLL_SUBMODULE_PRESENT)"; then \
+	  $(MAKE) install-flexdll; \
+	fi
+endif
 	cp config/Makefile "$(INSTALL_LIBDIR)/Makefile.config"
-	if test -f ocamlopt; then $(MAKE) installopt-cross; else \
+	if test -f ocamlopt; then $(MAKE) installopt; else \
 	   cd "$(INSTALL_BINDIR)"; \
 	   $(LN) ocamlc.byte$(EXE) ocamlc$(EXE); \
 	   $(LN) ocamllex.byte$(EXE) ocamllex$(EXE); \
@@ -774,12 +800,19 @@ installopt-cross:
 	cp asmcomp/*.cmi asmcomp/*.cmt asmcomp/*.cmti asmcomp/*.mli \
 		"$(INSTALL_COMPLIBDIR)"
 	cp compilerlibs/ocamloptcomp.cma $(OPTSTART) "$(INSTALL_COMPLIBDIR)"
+	if test -n "$(WITH_OCAMLDOC)"; then \
+	  $(MAKE) -C ocamldoc installopt; \
+	fi
+	for i in $(OTHERLIBRARIES); do \
+	  $(MAKE) -C otherlibs/$$i installopt || exit $$?; \
+	done
 	if test -f ocamlopt.opt ; then $(MAKE) installoptopt; else \
 	   cd "$(INSTALL_BINDIR)"; \
 	   $(LN) ocamlc.byte$(EXE) ocamlc$(EXE); \
 	   $(LN) ocamlopt.byte$(EXE) ocamlopt$(EXE); \
 	   $(LN) ocamllex.byte$(EXE) ocamllex$(EXE); \
 	fi
+	$(MAKE) -C tools installopt
 	if test -f ocamlopt.opt -a -f flexdll/flexlink.opt ; then \
 	  cp -f flexdll/flexlink.opt "$(INSTALL_BINDIR)/flexlink$(EXE)" ; \
 	fi
@@ -1166,14 +1199,8 @@ otherlibraries: ocamltools
 	  ($(MAKE) -C otherlibs/$$i all) || exit $$?; \
 	done
 
-.PHONY: otherlibraries-cross
-otherlibraries-cross:
-	for i in $(OTHERLIBRARIES); do \
-	  ($(MAKE) -C otherlibs/$$i all) || exit $$?; \
-	done
-
 .PHONY: otherlibrariesopt
-otherlibrariesopt:
+otherlibrariesopt: ocamltoolsopt
 	for i in $(OTHERLIBRARIES); do \
 	  ($(MAKE) -C otherlibs/$$i allopt) || exit $$?; \
 	done
