@@ -423,6 +423,7 @@ esac
 # with ocamlc.
 
 mkexe="\$(CC) \$(CFLAGS) \$(CPPFLAGS) \$(LDFLAGS)"
+outputexe="-o \$(EMPTY)"
 mkexedebugflag="-g"
 common_cflags=""
 common_cppflags=""
