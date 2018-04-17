@@ -741,39 +741,6 @@ installopt:
 	  cp -f flexdll/flexlink.opt "$(INSTALL_BINDIR)/flexlink$(EXE)" ; \
 	fi
 
-<<<<<<< HEAD
-=======
-.PHONY: installopt-cross
-installopt-cross:
-	$(MAKE) -C asmrun install
-	cp ocamlopt "$(INSTALL_BINDIR)/ocamlopt.byte$(EXE)"
-	$(MAKE) -C stdlib installopt
-	cp middle_end/*.cmi middle_end/*.cmt middle_end/*.cmti \
-	    middle_end/*.mli \
-		"$(INSTALL_COMPLIBDIR)"
-	cp middle_end/base_types/*.cmi middle_end/base_types/*.cmt \
-	    middle_end/base_types/*.cmti middle_end/base_types/*.mli \
-		"$(INSTALL_COMPLIBDIR)"
-	cp asmcomp/*.cmi asmcomp/*.cmt asmcomp/*.cmti asmcomp/*.mli \
-		"$(INSTALL_COMPLIBDIR)"
-	cp compilerlibs/ocamloptcomp.cma $(OPTSTART) "$(INSTALL_COMPLIBDIR)"
-	if test -n "$(WITH_OCAMLDOC)"; then \
-	  $(MAKE) -C ocamldoc installopt; \
-	fi
-	for i in $(OTHERLIBRARIES); do \
-	  $(MAKE) -C otherlibs/$$i installopt || exit $$?; \
-	done
-	if test -f ocamlopt.opt ; then $(MAKE) installoptopt; else \
-	   cd "$(INSTALL_BINDIR)"; \
-	   $(LN) ocamlc.byte$(EXE) ocamlc$(EXE); \
-	   $(LN) ocamlopt.byte$(EXE) ocamlopt$(EXE); \
-	   $(LN) ocamllex.byte$(EXE) ocamllex$(EXE); \
-	fi
-	$(MAKE) -C tools installopt
-	if test -f ocamlopt.opt -a -f flexdll/flexlink.opt ; then \
-	  cp -f flexdll/flexlink.opt "$(INSTALL_BINDIR)/flexlink$(EXE)" ; \
-	fi
->>>>>>> 9b91734429f3728c74195ae7f22bb1220c3104e7
 
 .PHONY: installoptopt
 installoptopt:
@@ -1158,11 +1125,7 @@ otherlibraries: ocamltools
 	done
 
 .PHONY: otherlibrariesopt
-<<<<<<< HEAD
 otherlibrariesopt: 
-=======
-otherlibrariesopt: ocamltoolsopt
->>>>>>> 9b91734429f3728c74195ae7f22bb1220c3104e7
 	for i in $(OTHERLIBRARIES); do \
 	  ($(MAKE) -C otherlibs/$$i allopt) || exit $$?; \
 	done
