@@ -528,11 +528,12 @@ all: runtime
 .PHONY: all-cross
 all-cross: runtime
 	$(MAKE) coreall-cross
-	$(MAKE) otherlibraries-cross
+	$(MAKE) otherlibraries
 	$(MAKE) ocaml
 	$(MAKE) runtimeopt
 	$(MAKE) ocamlopt
 	$(MAKE) libraryopt
+	$(MAKE) otherlibrariesopt
 
 # Bootstrap and rebuild the whole system.
 # The compilation of ocaml will fail if the runtime has changed.
@@ -689,31 +690,11 @@ endif
 
 .PHONY: install-cross
 install-cross:
-	$(MKDIR) "$(INSTALL_BINDIR)"
-	$(MKDIR) "$(INSTALL_LIBDIR)"
-	$(MKDIR) "$(INSTALL_STUBLIBDIR)"
-	$(MKDIR) "$(INSTALL_COMPLIBDIR)"
-	cp VERSION "$(INSTALL_LIBDIR)"
-	cp ocaml "$(INSTALL_BINDIR)/ocaml$(EXE)"
-	cp ocamlc "$(INSTALL_BINDIR)/ocamlc.byte$(EXE)"
-	$(MAKE) -C stdlib install
-	cp utils/*.cmi utils/*.cmt utils/*.cmti utils/*.mli \
-	   parsing/*.cmi parsing/*.cmt parsing/*.cmti parsing/*.mli \
-	   typing/*.cmi typing/*.cmt typing/*.cmti typing/*.mli \
-	   bytecomp/*.cmi bytecomp/*.cmt bytecomp/*.cmti bytecomp/*.mli \
-	   driver/*.cmi driver/*.cmt driver/*.cmti driver/*.mli \
-	   toplevel/*.cmi toplevel/*.cmt toplevel/*.cmti toplevel/*.mli \
-	   "$(INSTALL_COMPLIBDIR)"
-	cp compilerlibs/ocamlcommon.cma compilerlibs/ocamlbytecomp.cma \
-	   compilerlibs/ocamltoplevel.cma $(BYTESTART) $(TOPLEVELSTART) \
-	   "$(INSTALL_COMPLIBDIR)"
-	cp expunge "$(INSTALL_LIBDIR)/expunge$(EXE)"
-	cp config/Makefile "$(INSTALL_LIBDIR)/Makefile.config"
-	if test -f ocamlopt; then $(MAKE) installopt-cross; else \
-	   cd "$(INSTALL_BINDIR)"; \
-	   $(LN) ocamlc.byte$(EXE) ocamlc$(EXE); \
-	   $(LN) ocamllex.byte$(EXE) ocamllex$(EXE); \
-	fi
+	touch byterun/ocamlrun 
+	touch yacc/ocamlyacc
+	touch tools/profiling.cmx
+	touch tools/profiling.o
+	$(MAKE) install
 
 # Installation of the native-code compiler
 .PHONY: installopt
@@ -757,29 +738,6 @@ installopt:
 	    flexdll/flexlink.opt "$(INSTALL_BINDIR)/flexlink$(EXE)" ; \
 	fi
 
-.PHONY: installopt-cross
-installopt-cross:
-	$(MAKE) -C asmrun install
-	cp ocamlopt "$(INSTALL_BINDIR)/ocamlopt.byte$(EXE)"
-	$(MAKE) -C stdlib installopt
-	cp middle_end/*.cmi middle_end/*.cmt middle_end/*.cmti \
-	    middle_end/*.mli \
-		"$(INSTALL_COMPLIBDIR)"
-	cp middle_end/base_types/*.cmi middle_end/base_types/*.cmt \
-	    middle_end/base_types/*.cmti middle_end/base_types/*.mli \
-		"$(INSTALL_COMPLIBDIR)"
-	cp asmcomp/*.cmi asmcomp/*.cmt asmcomp/*.cmti asmcomp/*.mli \
-		"$(INSTALL_COMPLIBDIR)"
-	cp compilerlibs/ocamloptcomp.cma $(OPTSTART) "$(INSTALL_COMPLIBDIR)"
-	if test -f ocamlopt.opt ; then $(MAKE) installoptopt; else \
-	   cd "$(INSTALL_BINDIR)"; \
-	   $(LN) ocamlc.byte$(EXE) ocamlc$(EXE); \
-	   $(LN) ocamlopt.byte$(EXE) ocamlopt$(EXE); \
-	   $(LN) ocamllex.byte$(EXE) ocamllex$(EXE); \
-	fi
-	if test -f ocamlopt.opt -a -f flexdll/flexlink.opt ; then \
-	  cp -f flexdll/flexlink.opt "$(INSTALL_BINDIR)/flexlink$(EXE)" ; \
-	fi
 
 .PHONY: installoptopt
 installoptopt:
@@ -1169,14 +1127,8 @@ otherlibraries: ocamltools
 	  ($(MAKE) -C otherlibs/$$i all) || exit $$?; \
 	done
 
-.PHONY: otherlibraries-cross
-otherlibraries-cross:
-	for i in $(OTHERLIBRARIES); do \
-	  ($(MAKE) -C otherlibs/$$i all) || exit $$?; \
-	done
-
 .PHONY: otherlibrariesopt
-otherlibrariesopt:
+otherlibrariesopt: 
 	for i in $(OTHERLIBRARIES); do \
 	  ($(MAKE) -C otherlibs/$$i allopt) || exit $$?; \
 	done

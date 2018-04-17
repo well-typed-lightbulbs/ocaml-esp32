@@ -18,6 +18,9 @@
 #include <caml/signals.h>
 #include "unixsupport.h"
 #include <errno.h>
+
+#ifndef __XTENSA__
+
 #include <sys/types.h>
 #ifdef HAS_DIRENT
 #include <dirent.h>
@@ -36,3 +39,14 @@ CAMLprim value unix_closedir(value vd)
   DIR_Val(vd) = (DIR *) NULL;
   CAMLreturn(Val_unit);
 }
+
+#else 
+
+CAMLprim value unix_closedir(value vd)
+{
+  CAMLparam1(vd);
+  failwith("xtensa: closedir.c: not implemented");
+  CAMLreturn(Val_unit);
+}
+
+#endif 

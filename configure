@@ -71,6 +71,7 @@ with_flambda_invariants=false
 
 # we distinguish '' (not set) from 'true' (explicitly set by the user)
 with_instrumented_runtime=''
+outputexe="-o \$(EMPTY)"
 
 # Try to turn internationalization off, can cause config.guess to malfunction!
 unset LANG
@@ -503,8 +504,10 @@ case "$cc,$target" in
     # optimize for size on embedded devices
     common_cppflags="-Os"
     # Can't directly build executables
-    mkexe="$mkexe -c" 
-    unix_or_win32=""
+    mkexe="$mkexe -c"
+    outputexe="-c -o \$(EMPTY)"
+    unix_or_win32="unix"
+    with_ocamldoc=""
     ldflags="-nostdlib -lgcc -lm";;
   *,*-*-beos*)
     # No -lm library
@@ -1244,7 +1247,7 @@ fi
 
 case "$system" in
   mingw) unix_or_win32="win32"; unixlib="win32unix"; graphlib="win32graph";;
-  *) unix_or_win32="unix"; unixlib=""; graphlib="graph";; 
+  *) unix_or_win32="unix"; unixlib="unix"; graphlib="graph";; 
 esac
 
 config UNIX_OR_WIN32 "$unix_or_win32"
@@ -2081,7 +2084,7 @@ config BYTECCLIBS "$cclibs $dllib $pthread_link $instrumented_runtime_libs"
 config RPATH "$rpath"
 config EXE "$exe"
 config EMPTY ""
-config OUTPUTEXE "-o \$(EMPTY)"
+config OUTPUTEXE "$outputexe"
 config SUPPORTS_SHARED_LIBRARIES "$shared_libraries_supported"
 config SHAREDCCCOMPOPTS "$sharedcccompopts"
 config MKSHAREDLIBRPATH "$mksharedlibrpath"

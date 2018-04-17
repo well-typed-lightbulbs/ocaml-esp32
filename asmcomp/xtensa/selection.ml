@@ -45,13 +45,17 @@ method select_operation_softfp op args dbg =
     | (Cfloatofint, args) -> (self#iextcall("__floatsidf", false), args)
     | (Cintoffloat, args) -> (self#iextcall("__fixdfsi", false), args)
     | (Ccmpf comp, args) ->
-        let fn = match comp with 
-          | Ceq -> "__eqdf2"
-          | Cne -> "__nedf2"
-          | Clt -> "__ltdf2"
-          | Cle -> "__ledf2"
-          | Cgt -> "__gtdf2"
-          | Cge -> "__gedf2"
+        let fn, comp = match comp with 
+          | CFeq -> "__eqdf2", Ceq
+          | CFneq -> "__nedf2", Cne
+          | CFlt -> "__ltdf2", Clt
+          | CFle -> "__ledf2", Cle
+          | CFgt -> "__gtdf2", Cgt
+          | CFge -> "__gedf2", Cge
+          | CFnlt -> "__ltdf2", Cge
+          | CFnle -> "__ledf2", Cgt
+          | CFngt -> "__gtdf2", Cle
+          | CFnge -> "__gedf2", Clt
         in
         (Iintop_imm(Icomp(Isigned comp), 0),
         [Cop(Cextcall(fn, typ_int, false, None), args, dbg)])

@@ -515,7 +515,7 @@ let emit_instruction i =
         | Ifalsetest -> (Cmp "beq", Immediate 0)
         | Iinttest cmp -> (generate_comparison_op cmp, Register i.arg.(1))
         | Iinttest_imm(cmp, n) ->  (generate_comparison_op cmp, Immediate n)
-        | Ifloattest(_cmp, _neg) -> assert false
+        | Ifloattest(_cmp) -> assert false
         | Ioddtest ->  (Cmp "bbs", Immediate 0)
         | Ieventest ->  (Cmp "bbc", Immediate 0)
       in 
