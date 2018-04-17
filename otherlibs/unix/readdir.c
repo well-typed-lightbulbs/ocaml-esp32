@@ -20,6 +20,9 @@
 #include "unixsupport.h"
 #include <errno.h>
 #include <sys/types.h>
+
+#ifndef __XTENSA__
+
 #ifdef HAS_DIRENT
 #include <dirent.h>
 typedef struct dirent directory_entry;
@@ -40,3 +43,14 @@ CAMLprim value unix_readdir(value vd)
   if (e == (directory_entry *) NULL) caml_raise_end_of_file();
   return caml_copy_string(e->d_name);
 }
+
+#else 
+
+CAMLprim value unix_readdir(value vd)
+{
+  CAMLparam1(vd);
+  failwith("xtensa: readdir.c: not implemented");
+  CAMLreturn(Val_unit);
+}
+
+#endif 

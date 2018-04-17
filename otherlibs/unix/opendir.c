@@ -19,6 +19,9 @@
 #include <caml/signals.h>
 #include "unixsupport.h"
 #include <sys/types.h>
+
+#ifndef __XTENSA__
+
 #ifdef HAS_DIRENT
 #include <dirent.h>
 #else
@@ -43,3 +46,14 @@ CAMLprim value unix_opendir(value path)
   DIR_Val(res) = d;
   CAMLreturn(res);
 }
+
+#else 
+
+CAMLprim value unix_opendir(value vd)
+{
+  CAMLparam1(vd);
+  failwith("xtensa: opendir.c: not implemented");
+  CAMLreturn(Val_unit);
+}
+
+#endif 

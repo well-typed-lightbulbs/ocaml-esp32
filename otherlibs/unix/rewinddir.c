@@ -18,10 +18,13 @@
 #include "unixsupport.h"
 #include <errno.h>
 #include <sys/types.h>
+
+#ifndef __XTENSA__
 #ifdef HAS_DIRENT
 #include <dirent.h>
 #else
 #include <sys/dir.h>
+#endif
 #endif
 
 #ifdef HAS_REWINDDIR
