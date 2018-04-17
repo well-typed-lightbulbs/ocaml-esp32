@@ -416,6 +416,7 @@ esac
 # with ocamlc.
 
 mkexe="\$(CC) \$(CFLAGS) \$(CPPFLAGS) \$(LDFLAGS)"
+outputexe="-o \$(EMPTY)"
 mkexedebugflag="-g"
 common_cflags=""
 common_cppflags=""
@@ -1257,7 +1258,11 @@ otherlibraries="$unixlib str dynlink bigarray"
 
 case "$arch" in
     none) ;;
+<<<<<<< HEAD
     xtensa) otherlibraries="$unixlib str bigarray";;
+=======
+    xtensa) otherlibraries="";;
+>>>>>>> 9b91734429f3728c74195ae7f22bb1220c3104e7
     *)
       if $arch64; then
         otherlibraries="$otherlibraries raw_spacetime_lib"
