@@ -504,9 +504,7 @@ case "$cc,$target" in
   *,*-esp32-*)
     # optimize for size on embedded devices
     common_cppflags="-Os"
-    # Can't directly build executables
-    mkexe="$mkexe -c"
-    outputexe="-c -o \$(EMPTY)"
+    common_cflags="-nostdlib -u call_user_start_cpu0 -Wl,--gc-sections -Wl,-static -Wl,--start-group -lgcc -lstdc++ -lgcov -Wl,--end-group -Wl,-EL $common_cflags"
     unix_or_win32="unix"
     with_ocamldoc=""
     ldflags="-nostdlib -lgcc -lm";;
