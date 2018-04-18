@@ -703,8 +703,6 @@ endif
 
 .PHONY: install-cross
 install-cross:
-	touch byterun/ocamlrun 
-	touch yacc/ocamlyacc
 	touch tools/profiling.cmx
 	touch tools/profiling.o
 	$(MAKE) install
