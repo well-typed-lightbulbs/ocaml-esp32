@@ -1639,6 +1639,8 @@ if test "$pthread_wanted" = "yes"; then
                    pthread_caml_link="-cclib -pthread";;
     *-*-haiku*)    pthread_link=""
                    pthread_caml_link="";;
+    *-esp32-*)     pthread_link=""
+                   pthread_caml_link="";;
     *)             pthread_link="-lpthread"
                    pthread_caml_link="-cclib -lpthread";;
   esac
