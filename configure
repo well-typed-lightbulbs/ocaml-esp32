@@ -1045,7 +1045,7 @@ case "$arch,$cc,$system,$model" in
   power,gcc*,elf,ppc)   partialld="ld -r -m elf32ppclinux";;
   power,gcc*,elf,ppc64)   partialld="ld -r -m elf64ppc";;
   power,gcc*,elf,ppc64le)   partialld="ld -r -m elf64lppc";;
-  xtensa,*,*,*)   partialld="${TOOLPREF}ld -r";;
+  xtensa,*,*,*)   partialld="${TOOLPREF}ld -r -u caml_main";;
 esac
 
 asppprofflags='-DPROFILING'
