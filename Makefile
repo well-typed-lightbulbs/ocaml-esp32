@@ -535,6 +535,7 @@ all-cross: runtime
 	$(MAKE) libraryopt
 	$(MAKE) otherlibrariesopt
 	$(MAKE) opt-core
+	$(MAKE) ocamlc.opt
 	$(MAKE) ocamlopt.opt
 
 # Bootstrap and rebuild the whole system.
@@ -696,7 +697,9 @@ endif
 install-cross:
 	touch tools/profiling.cmx
 	touch tools/profiling.o
-	touch lex/ocamllex.opt
+	cp lex/ocamllex lex/ocamllex.opt
+	cp ocamlc ocamlc.opt
+	cp ocamlopt ocamlc.opt
 	$(MAKE) install
 
 # Installation of the native-code compiler
