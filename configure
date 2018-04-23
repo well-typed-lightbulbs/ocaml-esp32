@@ -1256,7 +1256,7 @@ otherlibraries="$unixlib str dynlink bigarray"
 
 case "$arch" in
     none) ;;
-    xtensa) otherlibraries="$unixlib str bigarray threads systhreads";;
+    xtensa) otherlibraries="$unixlib str bigarray";;
     *)
       if $arch64; then
         otherlibraries="$otherlibraries raw_spacetime_lib"

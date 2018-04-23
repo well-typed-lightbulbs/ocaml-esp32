@@ -506,6 +506,7 @@ opt.opt: core opt-core ocamlc.opt all ocamlopt.opt ocamllex.opt \
          ocamltest.opt
 endif
 
+
 .PHONY: base.opt
 base.opt:
 	$(MAKE) checkstack
@@ -557,6 +558,8 @@ all-cross: runtime
 	$(MAKE) ocamlopt
 	$(MAKE) libraryopt
 	$(MAKE) otherlibrariesopt
+	$(MAKE) opt-core
+	$(MAKE) ocamlopt.opt
 
 # Bootstrap and rebuild the whole system.
 # The compilation of ocaml will fail if the runtime has changed.
@@ -582,6 +585,8 @@ world-cross: coldstart-cross
 .PHONY: world.opt
 world.opt: coldstart
 	$(MAKE) opt.opt
+
+
 
 # FlexDLL sources missing error messages
 # Different git mechanism displayed depending on whether this source tree came
@@ -705,6 +710,7 @@ endif
 install-cross:
 	touch tools/profiling.cmx
 	touch tools/profiling.o
+	touch lex/ocamllex.opt
 	$(MAKE) install
 
 # Installation of the native-code compiler
