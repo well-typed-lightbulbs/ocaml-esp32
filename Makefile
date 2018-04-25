@@ -699,7 +699,7 @@ install-cross:
 	touch tools/profiling.o
 	cp lex/ocamllex lex/ocamllex.opt
 	cp ocamlc ocamlc.opt
-	cp ocamlopt ocamlc.opt
+	cp ocamlopt ocamlopt.opt
 	$(MAKE) install
 
 # Installation of the native-code compiler
