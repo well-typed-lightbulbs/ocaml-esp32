@@ -656,7 +656,7 @@ let emit_item = function
   | Calign n -> `.align	{emit_int(Misc.log2 n)}\n`
 
 let data l =
-  `.data\n`;
+  `.section	.rodata\n`;
   List.iter emit_item l
 
 
@@ -676,7 +676,7 @@ let end_assembly () =
   `.globl	{emit_symbol lbl_end}\n`;
   `{emit_symbol lbl_end}:\n`;
   let lbl_end = Compilenv.make_symbol (Some "data_end") in
-  `.data\n`;
+  `.section	.rodata\n`;
   `.globl	{emit_symbol lbl_end}\n`;
   `{emit_symbol lbl_end}:\n`;
   `	.long	0\n`;
