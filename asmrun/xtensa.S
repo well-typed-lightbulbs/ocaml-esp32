@@ -66,8 +66,14 @@ caml_alloc1:
     bltu    a2, a3, 1f  /* Call gc on overflow */
     wfr     f1, a2      /* Write new alloc ptr */
     ret
-1:
-    call4   caml_call_gc
+1:  /* Record return address */
+    l32r    a2, __caml_last_return_address
+    s32i    a0, a2, 0
+    /* Call GC */
+    call0   .Lcaml_call_gc
+    /* Restore return address */
+    l32r    a2, __caml_last_return_address
+    l32i    a0, a2, 0
     j       .Lcaml_alloc1
     .type   caml_alloc1, %function
     .size   caml_alloc1, .-caml_alloc1
@@ -87,8 +93,14 @@ caml_alloc2:
     bltu    a2, a3, 1f  /* Call gc on overflow */
     wfr     f1, a2      /* Write new alloc ptr */
     ret
-1:
-    call4   caml_call_gc
+1:  /* Record return address */
+    l32r    a2, __caml_last_return_address
+    s32i    a0, a2, 0
+    /* Call GC */
+    call0   .Lcaml_call_gc
+    /* Restore return address */
+    l32r    a2, __caml_last_return_address
+    l32i    a0, a2, 0
     j       .Lcaml_alloc2
     .type   caml_alloc2, %function
     .size   caml_alloc2, .-caml_alloc2
@@ -107,8 +119,14 @@ caml_alloc3:
     bltu    a2, a3, 1f  /* Call gc on overflow */
     wfr     f1, a2      /* Write new alloc ptr */
     ret
-1:
-    call4   caml_call_gc
+1:  /* Record return address */
+    l32r    a2, __caml_last_return_address
+    s32i    a0, a2, 0
+    /* Call GC */
+    call0   .Lcaml_call_gc
+    /* Restore return address */
+    l32r    a2, __caml_last_return_address
+    l32i    a0, a2, 0
     j       .Lcaml_alloc3
     .type   caml_alloc3, %function
     .size   caml_alloc3, .-caml_alloc3
@@ -127,8 +145,14 @@ caml_allocN:
     bltu    a3, a2, 1f  /* Call gc on overflow */
     wfr     f1, a3      /* Write new alloc ptr */
     ret
-1:
-    call4   caml_call_gc
+1:  /* Record return address */
+    l32r    a2, __caml_last_return_address
+    s32i    a0, a2, 0
+    /* Call GC */
+    call0   .Lcaml_call_gc
+    /* Restore return address */
+    l32r    a2, __caml_last_return_address
+    l32i    a0, a2, 0
     j       .Lcaml_allocN
     .type   caml_allocN, %function
     .size   caml_allocN, .-caml_allocN
