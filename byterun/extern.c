@@ -69,7 +69,7 @@ static struct trail_entry * extern_trail_cur, * extern_trail_limit;
 
 struct extern_item { value * v; mlsize_t count; };
 
-#define EXTERN_STACK_INIT_SIZE 256
+#define EXTERN_STACK_INIT_SIZE 32
 #define EXTERN_STACK_MAX_SIZE (1024*1024*100)
 
 static struct extern_item extern_stack_init[EXTERN_STACK_INIT_SIZE];
