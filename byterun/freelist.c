@@ -58,7 +58,7 @@ value caml_fl_merge = Fl_head;   /* Current insertion pointer.  Managed
 asize_t caml_fl_cur_wsz = 0;     /* Number of words in the free list,
                                     including headers but not fragments. */
 
-#define FLP_MAX 1000
+#define FLP_MAX 64
 static value flp [FLP_MAX];
 static int flp_size = 0;
 static value beyond = Val_NULL;

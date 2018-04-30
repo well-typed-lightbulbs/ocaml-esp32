@@ -95,8 +95,8 @@
    sizeof(struct trail_block) and sizeof(struct output_block)
    are slightly below 8Kb. */
 
-#define ENTRIES_PER_TRAIL_BLOCK  1025
-#define SIZE_EXTERN_OUTPUT_BLOCK 8100
+#define ENTRIES_PER_TRAIL_BLOCK  64
+#define SIZE_EXTERN_OUTPUT_BLOCK 256
 
 /* The entry points */
 
