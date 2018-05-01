@@ -655,8 +655,12 @@ let emit_item = function
   | Cskip n -> if n > 0 then `	.space	{emit_int n}\n`
   | Calign n -> `.align	{emit_int(Misc.log2 n)}\n`
 
-let data l =
-  `.section	.data\n`;
+let data l ro =
+  begin
+    match ro with 
+    | true -> `.section	.rodata\n`
+    | false -> `.section	.data\n`
+  end;
   List.iter emit_item l
 
 

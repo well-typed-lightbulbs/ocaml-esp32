@@ -132,7 +132,7 @@ let compile_phrase ppf p =
   if !dump_cmm then fprintf ppf "%a@." Printcmm.phrase p;
   match p with
   | Cfunction fd -> compile_fundecl ppf fd
-  | Cdata dl -> Emit.data dl
+  | Cdata (dl, readonly) -> Emit.data dl readonly
 
 
 (* For the native toplevel: generates generic functions unless
