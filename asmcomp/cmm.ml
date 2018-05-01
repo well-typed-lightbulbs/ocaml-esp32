@@ -198,9 +198,9 @@ type data_item =
 
 type phrase =
     Cfunction of fundecl
-  | Cdata of data_item list
+  | Cdata of (data_item list * bool)
 
-let ccatch (i, ids, e1, e2)=
+let ccatch (i, ids, e1, e2) =
   Ccatch(Nonrecursive, [i, ids, e2], e1)
 
 let reset () =

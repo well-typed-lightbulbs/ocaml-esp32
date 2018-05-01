@@ -961,7 +961,7 @@ let emit_item = function
   | Cskip n -> if n > 0 then D.space n
   | Calign n -> D.align n
 
-let data l =
+let data l _ro =
   D.data ();
   List.iter emit_item l
 

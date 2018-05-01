@@ -178,7 +178,7 @@ type data_item =
 
 type phrase =
     Cfunction of fundecl
-  | Cdata of data_item list
+  | Cdata of (data_item list * bool)
 
 val ccatch : int * Ident.t list * expression * expression -> expression
 
