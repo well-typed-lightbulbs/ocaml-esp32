@@ -315,8 +315,8 @@ caml_raise_exn:
     rfr     a15, f0
 /* Pop previous trap handler */
     lsi     f0, a15, 0
-/* Load trap destination */
-    lsi     f0, a15, 4
+/* Load trap destination in f5 (the it will be loaded in a0) */
+    lsi     f5, a15, 4
 /* Set new stack using movsp and a fake call8 */
     movi    a14, 2
     slli    a0, a14, 30
