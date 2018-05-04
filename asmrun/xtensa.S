@@ -424,7 +424,8 @@ caml_callback2_exn:
     mov     a2, a3      /* a2 = first arg */
     mov     a3, a4      /* a3 = second arg */
     mov     a4, a11     /* a4 = closure environment */
-    l32i    a11, a11, 0 /* code pointer */
+.literal __caml_apply2, caml_apply2
+    l32r    a11, __caml_apply2
     j       .Ljump_to_caml
     .type   caml_callback2_exn, %function
     .size   caml_callback2_exn, .-caml_callback2_exn
@@ -441,7 +442,8 @@ caml_callback3_exn:
     mov     a3, a4      /* a3 = first arg */
     mov     a4, a5      /* a4 = first arg */
     mov     a5, a11     /* a5 = closure environment */
-    l32i    a11, a11, 0 /* code pointer */
+.literal __caml_apply3, caml_apply3
+    l32r    a11, __caml_apply3
     j       .Ljump_to_caml
     .type   caml_callback3_exn, %function
     .size   caml_callback3_exn, .-caml_callback3_exn
