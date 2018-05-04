@@ -56,11 +56,13 @@ uintnat caml_verb_gc = 0;
 
 void caml_gc_message(int level, char *msg, ...)
 {
-  va_list ap;
-  va_start(ap, msg);
-  vfprintf(stdout, msg, ap);
-  va_end(ap);
-  fflush(stdout);
+  if ((caml_verb_gc & level) != 0){
+    va_list ap;
+    va_start(ap, msg);
+    vfprintf(stdout, msg, ap);
+    va_end(ap);
+    fflush(stdout);
+  }
 }
 
 CAMLexport void caml_fatal_error(char *msg)
