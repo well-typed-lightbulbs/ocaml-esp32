@@ -16,6 +16,6 @@
 (* Generation of assembly code *)
 
 val fundecl: Linearize.fundecl -> unit
-val data: Cmm.data_item list -> bool -> unit
+val data: Cmm.data_item list -> Cmm.access_mode -> unit
 val begin_assembly: unit -> unit
 val end_assembly: unit -> unit
