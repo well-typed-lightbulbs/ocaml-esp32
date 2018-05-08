@@ -237,12 +237,12 @@ let data_item ppf = function
   | Cskip n -> fprintf ppf "skip %i" n
   | Calign n -> fprintf ppf "align %i" n
 
-let data ppf dl readonly =
+let data ppf dl access_mode =
   let items ppf = List.iter (fun d -> fprintf ppf "@ %a" data_item d) dl in
-  match readonly with 
-  | true -> fprintf ppf "@[<hv 1>(rodata%t)@]" items
-  | false -> fprintf ppf "@[<hv 1>(rwdata%t)@]" items
+  match access_mode with 
+  | Read_only -> fprintf ppf "@[<hv 1>(rodata%t)@]" items
+  | Read_write -> fprintf ppf "@[<hv 1>(rwdata%t)@]" items
 
 let phrase ppf = function
   | Cfunction f -> fundecl ppf f
-  | Cdata (dl, readonly) -> data ppf dl readonly
+  | Cdata (dl, access_mode) -> data ppf dl access_mode

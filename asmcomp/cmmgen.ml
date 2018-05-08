@@ -2992,14 +2992,14 @@ let emit_constants cont (constants:Clambda.preallocated_constant list) =
     (fun { symbol = lbl; exported; definition = cst } ->
        let global = if exported then Global else Not_global in
        let cst = emit_structured_constant (lbl, global) cst [] in
-         c:= Cdata(cst, true):: !c)
+         c:= Cdata(cst, Read_only):: !c)
     constants;
   List.iter
     (function
     | Const_closure (symb, fundecls, clos_vars) ->
-        c := Cdata(emit_constant_closure symb fundecls clos_vars [], true) :: !c
+        c := Cdata(emit_constant_closure symb fundecls clos_vars [], Read_only) :: !c
     | Const_table (symb, elems) ->
-        c := Cdata(emit_constant_table symb elems, true) :: !c)
+        c := Cdata(emit_constant_table symb elems, Read_only) :: !c)
     !cmm_constants;
   cmm_constants := [];
   !c
@@ -3039,7 +3039,7 @@ let emit_gc_roots_table ~symbols cont =
   Cdata(Cglobal_symbol table_symbol ::
         Cdefine_symbol table_symbol ::
         List.map (fun s -> Csymbol_address s) symbols @
-        [Cint 0n], true)
+        [Cint 0n], Read_only)
   :: cont
 
 (* Build preallocated blocks (used for Flambda [Initialize_symbol]
@@ -3069,7 +3069,7 @@ let preallocate_block cont { Clambda.symbol; exported; tag; fields } =
     else
       Cdefine_symbol symbol :: space
   in
-  Cdata (data, false) :: cont
+  Cdata (data, Read_write) :: cont
 
 let emit_preallocated_blocks preallocated_blocks cont =
   let symbols =
@@ -3473,15 +3473,15 @@ let global_table namelist =
   Cdata(Cglobal_symbol "caml_globals" ::
         Cdefine_symbol "caml_globals" ::
         List.map mksym namelist @
-        [cint_zero], true)
+        [cint_zero], Read_only)
 
 let reference_symbols namelist =
   let mksym name = Csymbol_address name in
-  Cdata(List.map mksym namelist, true)
+  Cdata(List.map mksym namelist, Read_only)
 
 let global_data name v =
   Cdata(emit_structured_constant (name, Global)
-          (Uconst_string (Marshal.to_string v [])) [], true)
+          (Uconst_string (Marshal.to_string v [])) [], Read_only)
 
 let globals_map v = global_data "caml_globals_map" v
 
@@ -3494,7 +3494,7 @@ let frame_table namelist =
   Cdata(Cglobal_symbol "caml_frametable" ::
         Cdefine_symbol "caml_frametable" ::
         List.map mksym namelist
-        @ [cint_zero], true)
+        @ [cint_zero], Read_only)
 
 (* Generate the master table of Spacetime shapes *)
 
@@ -3506,7 +3506,7 @@ let spacetime_shapes namelist =
   Cdata(Cglobal_symbol "caml_spacetime_shapes" ::
         Cdefine_symbol "caml_spacetime_shapes" ::
         List.map mksym namelist
-        @ [cint_zero], true)
+        @ [cint_zero], Read_only)
 
 (* Generate the table of module data and code segments *)
 
@@ -3518,7 +3518,7 @@ let segment_table namelist symbol begname endname =
   in
   Cdata(Cglobal_symbol symbol ::
         Cdefine_symbol symbol ::
-        List.fold_right addsyms namelist [cint_zero], true)
+        List.fold_right addsyms namelist [cint_zero], Read_only)
 
 let data_segment_table namelist =
   segment_table namelist "caml_data_segments" "data_begin" "data_end"
@@ -3538,7 +3538,7 @@ let predef_exception i name =
                        [
                          Uconst_ref(label, Some cst);
                          Uconst_int (-i-1);
-                       ])) cont, true)
+                       ])) cont, Read_only)
 
 (* Header for a plugin *)
 

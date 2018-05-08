@@ -176,9 +176,13 @@ type data_item =
   | Cskip of int
   | Calign of int
 
+type access_mode =
+    Read_only
+  | Read_write
+
 type phrase =
     Cfunction of fundecl
-  | Cdata of (data_item list * bool)
+  | Cdata of (data_item list * access_mode)
 
 val ccatch : int * Ident.t list * expression * expression -> expression
 
