@@ -355,7 +355,10 @@ let emit_instruction i =
         if !contains_calls then (* Reload ret addr *)
           `	l32i	a0, sp, {emit_int (frame_size() - 4)}\n`;
         output_epilogue begin fun () ->
-          `	j.l  	{emit_symbol func}, a15\n`
+          let label = new_label () in
+          `	.literal	{emit_label label}, {emit_symbol func}\n`; 
+          `	l32r	a15, {emit_label label}\n`;
+          `	jx  	a15\n`
         end
       end
       
