@@ -184,22 +184,17 @@ let loc_exn_bucket = phys_reg 0
 let regs_are_volatile _rs = false 
 
 
-let _call12_destroyed = 
-  Array.of_list(List.map phys_reg 
-    [10; 11; 12])
 
-let _call8_destroyed = 
-  Array.of_list(List.map phys_reg 
-    [6; 7; 8; 9; 10; 11; 12])
-
-let _call4_destroyed = 
+let call4_destroyed = 
   Array.of_list(List.map phys_reg 
     [2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12])
 
 let destroyed_at_oper = function
-  | Iop(Icall_ind _ | Icall_imm _) -> all_phys_regs
-  | Iop(Iextcall _) -> all_phys_regs (* when call4 is used, a2 and a3 are actually saved.. *)
-  | Iop(Ialloc _) -> all_phys_regs
+  | Iop(Icall_ind _ | Icall_imm _)
+  | Iop(Iextcall { alloc = true; _}) -> all_phys_regs
+  | Iop(Iextcall _) -> call4_destroyed
+  | Iop(Ialloc _) -> (* a11-a15 are destroyed.*)
+    Array.of_list(List.map phys_reg [9; 10; 11; 12])
   | _ -> [||]
 
 let destroyed_at_raise = all_phys_regs
