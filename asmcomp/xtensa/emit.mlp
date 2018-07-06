@@ -35,18 +35,13 @@ let emit_reg = function
   | {loc = Reg r} -> emit_string (register_name r)
   | _ -> fatal_error "Emit_xtensa.emit_reg"
 
-let emit_int_const dst i = 
-  let n = new_label () in
-  `.literal	{emit_label n}, {emit_int32 i}\n`;
-  `	l32r	{emit_reg dst}, {emit_label n}\n`
+let emit_int_const dst i = `	movi	{emit_reg dst}, {emit_int32 i}\n`
 
 let emit_float_const dst_lo dst_hi f = 
-  let n = new_label () 
-  and high_bits = Int64.to_int32 (Int64.shift_right_logical f 32)
+  let high_bits = Int64.to_int32 (Int64.shift_right_logical f 32)
   and low_bits = Int64.to_int32 f in 
-  `.literal	{emit_label n}, {emit_int32 low_bits}, {emit_int32 high_bits}\n`;
-  `	l32r	{emit_reg dst_lo}, {emit_label n}\n`;
-  `	l32r	{emit_reg dst_hi}, {emit_label n}+4\n`
+  `	movi	{emit_reg dst_lo}, {emit_int32 low_bits}\n`;
+  `	movi	{emit_reg dst_hi}, {emit_int32 high_bits}\n`
 
 (* Call to C using CALL4 ABI *)
 let emit_call_to_C s =
@@ -129,16 +124,7 @@ let record_frame ?label live raise_ dbg =
   let lbl = record_frame_label ?label live raise_ dbg in `{emit_label lbl}:`
 
 
-type gc_call =
-  { gc_lbl: label;                      (* Entry label *)
-    gc_return_lbl: label;               (* Where to branch after GC *)
-    gc_frame_lbl: label }               (* Label of frame descriptor *)
 
-let call_gc_sites = ref ([] : gc_call list)
-
-let emit_call_gc gc =
-  `{emit_label gc.gc_lbl}:	{emit_call_to_OCaml "caml_call_gc"}\n`;
-  `{emit_label gc.gc_frame_lbl}:	j.l	{emit_label gc.gc_return_lbl}, a15\n`
 
 (* Record calls to caml_ml_array_bound_error.
    In debug mode, we maintain one call to caml_ml_array_bound_error
@@ -610,7 +596,6 @@ let fundecl fundecl =
   function_name := fundecl.fun_name;
   tailrec_entry_point := new_label();
   stack_offset := 0;
-  call_gc_sites := [];
   bound_error_sites := [];
   pending_literals := [];
   pending_strings := [];
@@ -635,7 +620,6 @@ let fundecl fundecl =
   flush_strings ();
   `.text\n`;
   `.literal_position\n`;
-  List.iter emit_call_gc !call_gc_sites;
   List.iter emit_call_bound_error !bound_error_sites;
   cfi_endproc();
   `	.type	{emit_symbol fundecl.fun_name}, %function\n`;
