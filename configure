@@ -1077,7 +1077,7 @@ case "$arch,$system" in
                   aspp="${TOOLPREF}cc -c";;
   *,freebsd)      as="${TOOLPREF}as"
                   aspp="${TOOLPREF}cc -c";;
-  xtensa,elf)     as="${TOOLPREF}as --text-section-literals"
+  xtensa,elf)     as="${TOOLPREF}as --text-section-literals --longcalls"
                   aspp="${TOOLPREF}cc -c";;
   amd64,*|arm,*|arm64,*|i386,*|power,bsd*|power,netbsd)
                   as="${TOOLPREF}as"
