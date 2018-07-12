@@ -44,19 +44,12 @@ let emit_float_const dst_lo dst_hi f =
   `	movi	{emit_reg dst_hi}, {emit_int32 high_bits}\n`
 
 (* Call to C using CALL4 ABI *)
-let emit_call_to_C s =
-  let veneer = new_label () in 
-  `.literal	{emit_label veneer}, {emit_symbol s}\n`;
-  `	l32r	a15, {emit_label veneer}\n`;
-  `	callx4	a15\n`
+let emit_call_to_C s = `	call4	{emit_symbol s}\n`
 
 (* Call to C using CALL0 ABI *)
-let emit_call_to_OCaml s =
-  let veneer = new_label () in 
-  `.literal	{emit_label veneer}, {emit_symbol s}\n`;
-  `	l32r	a15, {emit_label veneer}\n`;
-  `	callx0	a15\n`
+let emit_call_to_OCaml s = `	call0	{emit_symbol s}\n`
 
+(* Choose between positive and negative addressing for load/store operations. *)
 let emit_addressing_mode = function 
   | Iindexed ofs when ofs < 0 -> `e`
   | _ -> `i`
@@ -173,13 +166,19 @@ let emit_load_symbol register symbol =
   `	l32r	{emit_reg register}, {emit_label n}\n`
 
 
-type comparison_op = Cmp of string | CmpOr of (string * string) | CmpNor of (string * string)
+type comparison_op = Direct of string | Invert of string
 
 let generate_comparison_op = function 
-| Isigned Ceq ->    Cmp ("beq" ) | Isigned Cne ->    Cmp ("bne" ) | Isigned Cle -> CmpOr("blt","beq")
-| Isigned Cge ->    Cmp ("bge" ) | Isigned Clt ->    Cmp ("blt" ) | Isigned Cgt -> CmpNor("blt","beq")
-| Iunsigned Ceq ->  Cmp ("beq" ) | Iunsigned Cne ->  Cmp ("bne" ) | Iunsigned Cle -> CmpOr("bltu","beq")
-| Iunsigned Cge ->  Cmp ("bgeu") | Iunsigned Clt ->  Cmp ("bltu") | Iunsigned Cgt -> CmpNor("bltu","beq")
+| Isigned Ceq ->    Direct ("beq" ) | Isigned Cne ->    Direct ("bne" ) | Isigned Cle -> Invert("bge") (* a1 <= a2 <=> a2 >= a1*)
+| Isigned Cge ->    Direct ("bge" ) | Isigned Clt ->    Direct ("blt" ) | Isigned Cgt -> Invert("blt") (* a1 > a2 <=> a2 < a1*)
+| Iunsigned Ceq ->  Direct ("beq" ) | Iunsigned Cne ->  Direct ("bne" ) | Iunsigned Cle -> Invert("bgeu")
+| Iunsigned Cge ->  Direct ("bgeu") | Iunsigned Clt ->  Direct ("bltu") | Iunsigned Cgt -> Invert("bltu")
+
+let generate_comparison_op_imm n = function 
+| Isigned Ceq ->   "beqi", n | Isigned Cne ->    "bnei", n | Isigned Cle -> "blti", n+1
+| Isigned Cge ->   "bgei", n  | Isigned Clt ->   "blti", n  | Isigned Cgt -> "bgei", n+1
+| Iunsigned Ceq -> "beqi", n  | Iunsigned Cne -> "bnei", n  | Iunsigned Cle -> "bltui", n+1
+| Iunsigned Cge -> "bgeui", n | Iunsigned Clt -> "bltui", n | Iunsigned Cgt -> "bgeui", n+1
 
 let emit_comment str = 
   `	### {emit_string str} ###\n`
@@ -188,44 +187,74 @@ let emit_comment str =
 type imm_reg = Immediate of int | Register of Reg.t
 
 (*
- * Emits a long range conditional which will jump on label_then is r1 cmp_type r2 is true. 
- * If label_else is None the flow continues normally if the condition is not verified. 
+ * Conditional jump to label in 1 instruction.
  *)
-let emit_if_then_else cmp_type r1 r2 label_then label_else = 
-  let cmp_suffix = 
-    match r2 with
-    | Immediate _ -> "i"
-    | Register _ -> ""
-  in 
-  let emit_r2 () =
-    match r2 with 
-    | Immediate n -> emit_int n 
-    | Register r -> emit_reg r 
-  in 
-  let label_goto_then = new_label ()
-  in
-  let label_goto_else = new_label ()
-  in
+let emit_if_then cmp r1 r2 label_then =
+  match r2 with
+  | Immediate n ->
+    begin
+      let cmp, n = generate_comparison_op_imm n cmp in
+      `	{emit_string cmp}	{emit_reg r1}, {emit_int n}, {emit_label label_then} \n`;
+    end
+  | Register r2 ->
+    begin
+      match generate_comparison_op cmp with
+      | Direct op -> `	{emit_string (op)} 	{emit_reg r1}, {emit_reg r2}, {emit_label label_then} \n`
+      | Invert op -> `	{emit_string (op)} 	{emit_reg r2}, {emit_reg r1}, {emit_label label_then} \n`
+    end
+
+(* Compare r1 and r2 according to cmp, and set value to res in 3 or 4 instructions. *)
+let emit_comparison cmp r1 r2 res =
+  let cmp = generate_comparison_op cmp in
+  let label_end = new_label () in
+  if (same_location r1.loc res.loc || same_location r2.loc res.loc) then 
   begin 
-    match cmp_type with 
-    | Cmp op -> 
-      `	{emit_string (op^cmp_suffix)} 	{emit_reg r1}, {emit_r2 ()}, {emit_label label_goto_then} \n`;
-      `	j.l 	{emit_label label_goto_else}, a15\n`
-    | CmpNor (op1, op2) -> 
-      `	{emit_string (op1^cmp_suffix)} 	{emit_reg r1}, {emit_r2 ()}, {emit_label label_goto_else} \n`;
-      `	{emit_string (op2^cmp_suffix)} 	{emit_reg r1}, {emit_r2 ()}, {emit_label label_goto_else} \n`;
-      `	j.l 	{emit_label label_then}, a15\n`
-    | CmpOr (op1, op2) -> 
-      `	{emit_string (op1^cmp_suffix)} 	{emit_reg r1}, {emit_r2 ()}, {emit_label label_goto_then} \n`;
-      `	{emit_string (op2^cmp_suffix)} 	{emit_reg r1}, {emit_r2 ()}, {emit_label label_goto_then} \n`;
-      `	j.l 	{emit_label label_goto_else}, a15\n`
-  end;
-  `{emit_label label_goto_then}:\n`;
-  `	j.l 	{emit_label label_then}, a15\n`;
-  `{emit_label label_goto_else}:\n`;
-  match label_else with 
-  | None -> ``
-  | Some lbl -> `	j.l 	{emit_label lbl}, a15\n`
+    `	movi	a15, 1\n`;
+    begin
+      match cmp with 
+      | Direct cmp -> (* r1 cmp r2 => res should be 1 *)
+        `	{emit_string cmp} 	{emit_reg r1}, {emit_reg r2}, {emit_label label_end} \n`; 
+      | Invert cmp -> (* r2 cmp r1 => res should be 1 *)
+        `	{emit_string cmp} 	{emit_reg r2}, {emit_reg r1}, {emit_label label_end} \n`; 
+    end;
+    `	movi	a15, 0\n`;
+    `{emit_label label_end}:\n`;
+    `	mov 	{emit_reg res}, a15\n`
+  end
+  else
+  begin 
+    `	movi	{emit_reg res}, 1\n`;
+    begin
+      match cmp with 
+      | Direct cmp -> (* r1 cmp r2 => res should be 1 *)
+        `	{emit_string cmp} 	{emit_reg r1}, {emit_reg r2}, {emit_label label_end} \n`; 
+      | Invert cmp -> (* r2 cmp r1 => res should be 1 *)
+        `	{emit_string cmp} 	{emit_reg r2}, {emit_reg r1}, {emit_label label_end} \n`; 
+    end;
+    `	movi	{emit_reg res}, 0\n`;
+    `{emit_label label_end}:\n`
+  end
+
+(* Compare r1 and r2 according to cmp, and set value to res in 3 or 4 instructions. *)
+let emit_comparison_imm cmp r1 n res =
+  let cmp, n = generate_comparison_op_imm n cmp in
+  let label_end = new_label () in
+  if (same_location r1.loc res.loc) then 
+  begin
+    `	movi	a15, 1\n`;
+    `	{emit_string cmp}	{emit_reg r1}, {emit_int n}, {emit_label label_end} \n`;
+    `	movi	a15, 0\n`;
+    `{emit_label label_end}:\n`;
+    `	mov	{emit_reg res}, a15\n`
+  end
+  else
+  begin
+    `	movi	{emit_reg res}, 1\n`;
+    `	{emit_string cmp}	{emit_reg r1}, {emit_int n}, {emit_label label_end} \n`;
+    `	movi	{emit_reg res}, 0\n`;
+    `{emit_label label_end}:\n`
+  end
+
 
 let name_for_int_operation = function 
   | Iadd  -> "add", false
@@ -428,36 +457,20 @@ let emit_instruction i =
       emit_comment "Comparison";
       assert (Array.length i.arg >= 2);
       assert (Array.length i.res >= 1);
-      let label_1 = new_label () and label_0 = new_label () and label_end = new_label () in
-      let cmp = generate_comparison_op cmp in
-      emit_if_then_else cmp i.arg.(0) (Register i.arg.(1)) label_1 (Some label_0);
-      `{emit_label label_0}:\n`;
-      `	movi	{emit_reg i.res.(0)}, 0\n`;
-      `	j.l	{emit_label label_end}, a15\n`;
-      `{emit_label label_1}:\n`;
-      `	movi	{emit_reg i.res.(0)}, 1\n`;
-      `{emit_label label_end}:\n`;
+      emit_comparison cmp i.arg.(0) i.arg.(1) i.res.(0)
     | Lop(Iintop_imm(Icomp cmp, n)) -> 
       emit_comment "Comparison_imm";
       assert (Array.length i.res >= 1);
       assert (Array.length i.arg >= 2);
-      let label_1 = new_label () and label_0 = new_label () and label_end = new_label () in
-      let cmp = generate_comparison_op cmp in
-      emit_if_then_else cmp i.arg.(0) (Immediate n) label_1 (Some label_0);
-      `{emit_label label_0}:\n`;
-      `	movi	{emit_reg i.res.(0)}, 0\n`;
-      `	j.l	{emit_label label_end}, a15\n`;
-      `{emit_label label_1}:\n`;
-      `	movi	{emit_reg i.res.(0)}, 1\n`;
-      `{emit_label label_end}:\n`;
+      emit_comparison_imm cmp i.arg.(0) n i.res.(0)
     | Lop(Iintop (Icheckbound { label_after_error ; } )) ->
       emit_comment "Checkbound"; 
       let lbl = bound_error_label ?label:label_after_error i.dbg in
-      emit_if_then_else (Cmp "bltu") i.arg.(0) (Register i.arg.(1)) lbl None 
+      emit_if_then (Iunsigned Clt) i.arg.(0) (Register i.arg.(1)) lbl
     | Lop(Iintop_imm(Icheckbound { label_after_error; }, n)) ->
       emit_comment "Checkbound imm";
       let lbl = bound_error_label ?label:label_after_error i.dbg in 
-      emit_if_then_else (Cmp "bltu") i.arg.(0) (Immediate n) lbl None 
+      emit_if_then (Iunsigned Clt) i.arg.(0) (Immediate n) lbl
     | Lop(Iintop op) ->
       emit_comment "Intop";
       let instr, sar = name_for_int_operation op in
@@ -492,6 +505,8 @@ let emit_instruction i =
       output_epilogue begin fun () -> `	ret\n` end
     | Llabel(label) -> 
       emit_comment "Label";
+      `	j 	{emit_label label}\n`;
+      `.align 4\n`;
       emit_label label; `:\n`;
     | Lbranch(label) -> 
       emit_comment "Branch";
@@ -499,36 +514,35 @@ let emit_instruction i =
     | Lcondbranch(tst, lbl) -> 
       emit_comment ("Condbranch -> .LC"^(string_of_int lbl));
       assert (Array.length i.arg >= 1);
-      let cmp, op2 = match tst with
-        | Itruetest -> (Cmp "bne", Immediate 0)
-        | Ifalsetest -> (Cmp "beq", Immediate 0)
-        | Iinttest cmp -> (generate_comparison_op cmp, Register i.arg.(1))
-        | Iinttest_imm(cmp, n) ->  (generate_comparison_op cmp, Immediate n)
-        | Ifloattest(_cmp) -> assert false
-        | Ioddtest ->  (Cmp "bbs", Immediate 0)
-        | Ieventest ->  (Cmp "bbc", Immediate 0)
-      in 
-      emit_if_then_else cmp i.arg.(0) op2 lbl None 
+      begin
+        match tst with
+          | Itruetest -> `	bnez	{emit_reg i.arg.(0)}, {emit_label lbl}\n`
+          | Ifalsetest -> `	beqz	{emit_reg i.arg.(0)}, {emit_label lbl}\n`
+          | Iinttest cmp -> emit_if_then cmp i.arg.(0) (Register i.arg.(1)) lbl
+          | Iinttest_imm(cmp, n) -> emit_if_then cmp i.arg.(0) (Immediate n) lbl
+          | Ifloattest(_cmp) -> assert false
+          | Ioddtest -> `	bbsi	{emit_reg i.arg.(0)}, 0, {emit_label lbl}\n`
+          | Ieventest ->`	bbci	{emit_reg i.arg.(0)}, 0, {emit_label lbl}\n`
+      end
     | Lcondbranch3(br1, br2, br3) -> 
       emit_comment ("Condbranch 3");
       assert (Array.length i.arg >= 1);
-      let end_label = new_label () in 
+      (* Branch if less than 1 *)
       begin match br1 with
         None -> ()
       | Some lbl -> `	blti	{emit_reg i.arg.(0)}, 1, {emit_label lbl}\n`
       end;
+      (* Branch if equal than 1 *)
       begin match br2 with
         None -> ()
       | Some lbl -> `	beqi	{emit_reg i.arg.(0)}, 1, {emit_label lbl}\n`
       end;
+      (* Branch if greater than 1 *)
       begin match br3 with
         None -> ()
       | Some lbl -> 
         begin 
-          `	blti	{emit_reg i.arg.(0)}, 1, {emit_label end_label}\n`;
-          `	beqi	{emit_reg i.arg.(0)}, 1, {emit_label end_label}\n`;
-          `	j.l	{emit_label lbl}, a15\n`;
-          emit_label end_label; `:\n`;
+          `	bgei	{emit_reg i.arg.(0)}, 2, {emit_label lbl}\n`;
         end
       end;
     | Lswitch(jumptbl) -> 
@@ -548,11 +562,8 @@ let emit_instruction i =
       done;
       `.section	.text\n`
     | Lsetuptrap(label) ->
-      let veneer = new_label () in 
       emit_comment "Setup trap"; 
-      `.literal	{emit_label veneer}, {emit_label label}\n`;
-      `	l32r	a15, {emit_label veneer}\n`;
-      `	callx0	a15\n`
+      `	call0 	{emit_label label}\n`
     | Lpushtrap -> 
       emit_comment "Push trap";
       stack_offset := !stack_offset + 16;
