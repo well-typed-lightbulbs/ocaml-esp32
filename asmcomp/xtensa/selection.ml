@@ -49,6 +49,8 @@ method! select_operation op args dbg =
     | (Cmodi, args) -> (Iintop Imod, args)
     | _ -> self#select_operation_softfp op args dbg
 
+(* As the FP co-processor is single precision, there's no use for OCaml and 
+ we must fall back to soft floating point. *)
 method select_operation_softfp op args dbg = 
   match (op, args) with 
     | (Caddf, args) -> (self#iextcall("__adddf3", false), args)
@@ -85,8 +87,9 @@ method! select_condition = function
   (* Turn fp comparisons into runtime ABI calls *)
   | Cop(Ccmpf _ as op, args, dbg) ->
       begin match self#select_operation_softfp op args dbg with
-        (Iintop_imm(Icomp(Isigned cmp), 0), [arg]) -> (Iinttest_imm(Isigned cmp, 0), arg)
-      | _ -> assert false
+        | (Iintop_imm(Icomp(Isigned cmp), 0), [arg]) -> 
+            (Iinttest_imm(Isigned cmp, 0), arg)
+        | _ -> assert false
       end
   | expr ->
       super#select_condition expr

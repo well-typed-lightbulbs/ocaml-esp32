@@ -113,9 +113,11 @@ let record_frame_label ?label live raise_ dbg =
   let live_offset = ref [] in
   Reg.Set.iter
     (function
-      | {typ = Val; loc = Reg r} ->(* Pointer in register: 2n+1 encoding of register index*)
+      | {typ = Val; loc = Reg r} ->
+      (* Pointer in register: 2n+1 encoding of register index*)
           live_offset := ((r lsl 1) + 1) :: !live_offset
-      | {typ = Val; loc = Stack s} as reg -> (* Pointer on stack: give stack offset *)
+      | {typ = Val; loc = Stack s} as reg -> 
+      (* Pointer on stack: give stack offset *)
           live_offset := slot_offset s (register_class reg) :: !live_offset
       | {typ = Addr} as r ->
           Misc.fatal_error ("bad GC root " ^ Reg.name r)
@@ -171,28 +173,36 @@ let flush_strings () =
   write_str !pending_strings;
   pending_strings := []
 
-(* Saves symbol as a literal and load it. Literals are automatically placed within a positive offset of the l32r instruction. *)
+(* Saves symbol as a literal and load it. 
+Literals are automatically placed within a positive offset of the l32r 
+instruction. *)
 let emit_load_symbol register symbol = 
   let n = new_label () in
   `.literal	{emit_label n}, {emit_symbol symbol}\n`;
   `	l32r	{emit_reg register}, {emit_label n}\n`
 
 
-(* Some operations (less than or equal to, greater than) are not available so we have to work around by swapping registers. *)
+(* Some operations (less than or equal to, greater than) are not available so 
+we have to work around by swapping registers. *)
 type comparison_op = Direct of string | Invert of string
 
 let generate_comparison_op = function 
-| Isigned Ceq ->    Direct ("beq" ) | Isigned Cne ->    Direct ("bne" ) | Isigned Cle -> Invert("bge") (* a1 <= a2 <=> a2 >= a1*)
-| Isigned Cge ->    Direct ("bge" ) | Isigned Clt ->    Direct ("blt" ) | Isigned Cgt -> Invert("blt") (* a1 > a2 <=> a2 < a1*)
-| Iunsigned Ceq ->  Direct ("beq" ) | Iunsigned Cne ->  Direct ("bne" ) | Iunsigned Cle -> Invert("bgeu")
-| Iunsigned Cge ->  Direct ("bgeu") | Iunsigned Clt ->  Direct ("bltu") | Iunsigned Cgt -> Invert("bltu")
+  | Isigned Ceq ->    Direct ("beq" ) | Isigned Cne ->    Direct ("bne" ) 
+  | Isigned Cle ->    Invert("bge")   | Isigned Cge ->    Direct ("bge" ) 
+  | Isigned Clt ->    Direct ("blt" ) | Isigned Cgt ->    Invert("blt") 
+  | Iunsigned Ceq ->  Direct ("beq" ) | Iunsigned Cne ->  Direct ("bne" ) 
+  | Iunsigned Cle ->  Invert("bgeu")  | Iunsigned Cge ->  Direct ("bgeu") 
+  | Iunsigned Clt ->  Direct ("bltu") | Iunsigned Cgt ->  Invert("bltu")
 
-(* For immediates the workaround is to increase by one its value as r1 > n <=> r1 >= n + 1 and r1 <= n <=> r1 < n + 1 *)
+(* For immediates the workaround is to increase by one its value 
+as r1 > n <=> r1 >= n + 1 and r1 <= n <=> r1 < n + 1 *)
 let generate_comparison_op_imm n = function 
-| Isigned Ceq ->   "beqi", n | Isigned Cne ->    "bnei", n | Isigned Cle -> "blti", n+1
-| Isigned Cge ->   "bgei", n  | Isigned Clt ->   "blti", n  | Isigned Cgt -> "bgei", n+1
-| Iunsigned Ceq -> "beqi", n  | Iunsigned Cne -> "bnei", n  | Iunsigned Cle -> "bltui", n+1
-| Iunsigned Cge -> "bgeui", n | Iunsigned Clt -> "bltui", n | Iunsigned Cgt -> "bgeui", n+1
+  | Isigned Ceq ->   "beqi", n   | Isigned Cne ->   "bnei", n 
+  | Isigned Cle ->   "blti", n+1 | Isigned Cge ->   "bgei", n  
+  | Isigned Clt ->   "blti", n   | Isigned Cgt ->   "bgei", n+1
+  | Iunsigned Ceq -> "beqi", n   | Iunsigned Cne -> "bnei", n  
+  | Iunsigned Cle -> "bltui", n+1| Iunsigned Cge -> "bgeui", n 
+  | Iunsigned Clt -> "bltui", n  | Iunsigned Cgt -> "bgeui", n+1
 
 type imm_reg = Immediate of int | Register of Reg.t
 
@@ -213,7 +223,8 @@ let emit_if_then cmp r1 r2 label_then =
       | Invert op -> `	{emit_string (op)} 	{emit_reg r2}, {emit_reg r1}, {emit_label label_then} \n`
     end
 
-(* Compare r1 and r2 according to cmp, and set value to res in 3 or 4 instructions. *)
+(* Compare r1 and r2 according to cmp, 
+and set value to res in 3 or 4 instructions. *)
 let emit_comparison cmp r1 r2 res =
   let cmp = generate_comparison_op cmp in
   let label_end = new_label () in
@@ -280,7 +291,8 @@ let name_for_int_operation = function
   | Iasr  -> "sra", true
   | _ -> assert false
 
-(* For shift operations, the value of the shift must be put in the shift value register beforehand *)
+(* For shift operations, the value of the shift must be put in the 
+shift value register beforehand *)
 let emit_fill_shift_register instr reg = match instr with 
   | Ilsl -> `	ssl	{emit_reg reg}\n`
   | Iasr | Ilsr -> `	ssr	{emit_reg reg}\n`
@@ -295,9 +307,11 @@ let emit_stack r =
   | _ -> fatal_error "Emit_xtensa.emit_stack"
 
 (* Because of windowed abi, we must use movsp.
-  Under SP may live up to 4 spilled registers which are the a0-a3 of OCaml code's caller.
-  MOVSP triggers an exception if there are indeed spilled registers there, and moves them accordingly to the new stack location. 
-  Some work is done to make MOVSP believe OCaml code uses a windowed ABI, this is made by tweaking the return address. *)
+  Under SP may live up to 4 spilled registers which are the a0-a3 of OCaml 
+  code's caller. MOVSP triggers an exception if there are indeed spilled 
+  registers there, and moves them accordingly to the new stack location. 
+  Some work is done to make MOVSP believe OCaml code uses a windowed ABI, 
+  this is made by tweaking the return address. *)
 let emit_stack_adjustment n =
   if n = 0 then () else begin
     `	wfr 	f5, a0\n`;
@@ -443,24 +457,29 @@ let emit_instruction i =
     | Lop(Iintop op) ->
         let instr, sar = name_for_int_operation op in
         (match sar with 
-        | true ->  emit_fill_shift_register op i.arg.(1); `	{emit_string instr} 	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
-        | false -> `	{emit_string instr} 	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`)
+        | true ->  
+          emit_fill_shift_register op i.arg.(1); `	{emit_string instr} 	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+        | false -> 
+          `	{emit_string instr} 	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`)
     | Lop(Iintop_imm(op, n)) -> 
         let instr,_ = name_for_int_operation op in 
         `	{emit_string instr}i	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_int n}\n`
-    | Lop(Inegf) -> (* Taking advantage of the fact that double negation is the same as float negation on the high 32 bits. *)
+    | Lop(Inegf) -> (* Taking advantage of the fact that double negation is 
+                        the same as float negation on the high 32 bits. *)
         `	wfr 	f8, {emit_reg i.arg.(1)}\n`;
         `	neg.s	f8, f8\n`;
         `	mov 	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`;
         `	rfr 	{emit_reg i.res.(1)}, f8\n`;
-    | Lop(Iabsf) -> (* Taking advantage of the fact that double absolute value is the same as float absolute value on the high 32 bits. *)
+    | Lop(Iabsf) -> (* Taking advantage of the fact that double absolute value 
+                    is the same as float absolute value on the high 32 bits. *)
         `	wfr 	f8, {emit_reg i.arg.(1)}\n`;
         `	abs.s	f8, f8\n`;
         `	mov 	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`;
         `	rfr 	{emit_reg i.res.(1)}, f8\n`;
     | Lop(Ifloatofint) -> assert false (* Implemented by runtime ABI call *)
     | Lop(Iintoffloat) -> assert false (* Implemented by runtime ABI call *)
-    | Lop(Iaddf | Isubf | Imulf | Idivf as _op) -> assert false (* Implemented by runtime ABI call *)
+    | Lop(Iaddf | Isubf | Imulf | Idivf as _op) -> 
+        assert false (* Implemented by runtime ABI call *)
     | Lop(Iname_for_debugger _) -> ``
     | Lop(Ispecific(_)) -> ``
     | Lreloadretaddr -> 
@@ -468,7 +487,9 @@ let emit_instruction i =
         `	l32i	a0, sp, {emit_int(n-4)}\n`
     | Lreturn -> 
         output_epilogue begin fun () -> `	ret\n` end
-    | Llabel(label) -> (* CALL0 requires 4-byte aligned target. Jump is here so that the processor doesn't start to misinterpret the padding. *)
+    | Llabel(label) -> (* CALL0 requires 4-byte aligned target. Jump is here 
+                          so that the processor doesn't start to misinterpret 
+                          the padding. *)
         `	j 	{emit_label label}\n`;
         `.align 4\n`;
         emit_label label; `:\n`;
@@ -508,7 +529,7 @@ let emit_instruction i =
         let switch_label = new_label () in
         let __switch_label = new_label () in
         `.literal	{emit_label __switch_label}, {emit_label switch_label}\n`;
-        `	l32r	a15, {emit_label __switch_label}\n`; (* Load base address of labels in a15 *)
+        `	l32r	a15, {emit_label __switch_label}\n`; (* Load base address *)
         `	addx4	a15, {emit_reg i.arg.(0)}, a15\n`; (* arg.(0)*4 + a15 *)
         `	l32i	a15, a15, 0\n`; (* Load label address *)
         `	jx  	a15\n`; (* Jump to label *)
