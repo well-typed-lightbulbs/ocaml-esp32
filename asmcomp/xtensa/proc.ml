@@ -22,8 +22,6 @@ open Mach
 
 let word_addressed = false
 
-(* Registers available for register allocation *)
-
 (* 
   Integer register map:
     a0       return address
@@ -31,17 +29,22 @@ let word_addressed = false
     a2 - a7  general purpose (preserved on call)
     a8 - a14 general purpose (not preserved)
     a15      scratch register
-    
+  
+  Floating point registers (single precision)
     f0       trap pointer (preserved) 
     f1       allocation pointer (preserved) 
     f2       allocation limit (preserved) 
     f8       temp float for neg/abs
 *)
 
+(* Registers available for register allocation.
+Floating point registers are useless in a floating point computing purpose 
+as they are single precision (whereas OCaml uses double precision floats.) *)
+(* Maybe we could use them as another class of general purpose registers.*)
+(* Moving from general purpose to fp has a latency of 2 instructions cycles *)
 let int_reg_name =
   [|"a2"; "a3"; "a4"; "a5"; "a6"; "a7"; 
     "a8"; "a9"; "a10"; "a11"; "a12"; "a13"; "a14"|]
-
 
 let num_register_classes = 1
 
@@ -59,7 +62,6 @@ let register_name r = assert (r < 13);int_reg_name.(r)
 let rotate_registers = true
 
 (* Representation of hard registers by pseudo-registers *)
-
 let hard_int_reg =
   let v = Array.make 13 Reg.dummy in
   for i = 0 to 12 do v.(i) <- Reg.at_location Int (Reg i) done; v
@@ -73,6 +75,29 @@ let stack_slot slot ty =
 
 let loc_spacetime_node_hole = Reg.dummy  (* Spacetime unsupported *)
 
+(******************** OCaml compilation scheme on ESP32. **********************
+
+Xtensa LX6 processor has 64 registers, but only 16 are visible by standard 
+instructions. The "window" of visible registers can be rotated by function
+calls and returns, thus acting as a physical stack with overlaps to be able to
+pass parameters and return values.
+
+There are mechanisms for automatic spilling when the stack overflows 
+(happening generally after a depth of eight C calls) which put the registers in
+pre-defined spaces on the stack. This increases efficiency by reducing register
+spilling, as long as the program doesn't swing much in call depth. 
+
+C code is compiled using this ABI, but I choose to start with a regular calling
+convention for OCaml, as it seems that windowed calling conventions are not 
+supported (`loc_results` doesn't take into account the fact that the caller's 
+result register is different from the callee's result register.).
+
+As a consequence: 
+C is called using windowed calls (CALL4 = rotate window by 4 registers). 
+OCaml to OCaml calls are made using CALL0. (no register window rotation).
+The weirdnesses in the runtime are mainly to ensure compatibility between the 
+two ABIs.
+*)
 
 let calling_conventions
     first_reg last_reg make_stack arg =
@@ -104,7 +129,8 @@ let calling_conventions
           stack_ofs := Misc.align !stack_ofs 8; (* Two-word align stack *)
           (* TODO: Check arg1.typ == arg2.typ == (Int | Float) *)
           let stack_lower = stack_slot (make_stack !stack_ofs) arg1.typ 
-          and stack_upper = stack_slot (make_stack (!stack_ofs + 4)) arg1.typ in 
+          and stack_upper = stack_slot (make_stack (!stack_ofs + 4)) arg1.typ 
+          in 
           loc.(i) <- [| stack_lower; stack_upper |];
           stack_ofs := !stack_ofs + 8
         end
@@ -134,7 +160,6 @@ let ensure_single_regs res =
  * a1 sp (preserved)
  * a2 – a7 Function Arguments
  *)
-
 let loc_arguments arg = 
   let (loc, alignment) = 
     calling_conventions 0 5 outgoing (single_regs arg) 
@@ -162,7 +187,6 @@ let loc_results res =
  * Return in a6 – a9
  * a2 and a3 are saved.
  *)
-
 let loc_external_results res = 
   let (loc, _ofs) = 
     calling_conventions 4 7 not_supported (single_regs res)
@@ -176,8 +200,6 @@ let loc_external_arguments arg =
 let loc_exn_bucket = phys_reg 0
 
 let regs_are_volatile _rs = false 
-
-
 
 let call4_destroyed = 
   Array.of_list(List.map phys_reg 
@@ -194,7 +216,6 @@ let destroyed_at_oper = function
 let destroyed_at_raise = all_phys_regs
 
 (* Maximal register pressure *)
-
 let safe_register_pressure = function
   | Iextcall _ -> 0
   | Icall_ind _ | Icall_imm _ -> 0
