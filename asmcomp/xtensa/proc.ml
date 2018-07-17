@@ -2,20 +2,14 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*            Xavier Leroy, projet Gallium, INRIA Rocquencourt            *)
-(*                          Bill O'Farrell, IBM                           *)
+(*       Lucas Pluvinage, OCaml Labs intern, ENS Paris student            *)
 (*                                                                        *)
-(*   Copyright 2015 Institut National de Recherche en Informatique et     *)
-(*     en Automatique.                                                    *)
-(*   Copyright 2015 IBM (Bill O'Farrell with help from Tristan Amini).    *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-
-(* Description of the Z Processor *)
 
 open Misc
 open Cmm
