@@ -72,9 +72,10 @@ let same_location l1 l2 = match l1, l2 with
   | _, _ -> false
 
 (* Addressing relative to a register. Can only be positive or between -4 and -64. *)
-let emit_addressing addr r n = 
+let emit_addressing align addr r n = 
   match addr with
     Iindexed ofs ->
+      assert (ofs mod align == 0);
       `{emit_reg r.(n)}, {emit_int ofs}`
 
 (* Position relative to stack pointer.
@@ -302,7 +303,7 @@ let emit_stack r =
   match r.loc with  
   | Stack s -> 
     let ofs = slot_offset s (register_class r) in 
-    assert (ofs >= 0);
+    assert (ofs >= 0 && ofs mod 4 == 0) ;
     `sp, {emit_int ofs}`
   | _ -> fatal_error "Emit_xtensa.emit_stack"
 
@@ -397,39 +398,39 @@ let emit_instruction i =
         let addr' = offset_addressing addr 4 in
         begin
           if same_location i.res.(0).loc i.arg.(0).loc then begin (* Avoid address overwrite *)
-            `	l32{emit_addressing_mode addr'}	{emit_reg i.res.(1)}, {emit_addressing addr' i.arg 0}\n`;
-            `	l32{emit_addressing_mode addr}	{emit_reg i.res.(0)}, {emit_addressing addr i.arg 0}\n`
+            `	l32{emit_addressing_mode addr'}	{emit_reg i.res.(1)}, {emit_addressing 4 addr' i.arg 0}\n`;
+            `	l32{emit_addressing_mode addr}	{emit_reg i.res.(0)}, {emit_addressing 4 addr i.arg 0}\n`
           end else begin
-            `	l32{emit_addressing_mode addr}	{emit_reg i.res.(0)}, {emit_addressing addr i.arg 0}\n`;
-            `	l32{emit_addressing_mode addr'}	{emit_reg i.res.(1)}, {emit_addressing addr' i.arg 0}\n`
+            `	l32{emit_addressing_mode addr}	{emit_reg i.res.(0)}, {emit_addressing 4 addr i.arg 0}\n`;
+            `	l32{emit_addressing_mode addr'}	{emit_reg i.res.(1)}, {emit_addressing 4 addr' i.arg 0}\n`
           end
         end
     | Lop(Iload(size, addr)) -> 
         let r = i.res.(0) in
-          let instr =
+          let instr, align =
             match size with
-              Byte_unsigned -> "l8u"
+              Byte_unsigned -> "l8u", 1
             | Byte_signed -> assert false
-            | Sixteen_unsigned -> "l16u"
-            | Sixteen_signed -> "l16s"
-            | _ (* 32-bit quantities *) -> "l32" in
-          `	{emit_string instr}{emit_addressing_mode addr}	{emit_reg r}, {emit_addressing addr i.arg 0}\n`;
+            | Sixteen_unsigned -> "l16u", 2
+            | Sixteen_signed -> "l16s", 2
+            | _ (* 32-bit quantities *) -> "l32", 4 in
+          `	{emit_string instr}{emit_addressing_mode addr}	{emit_reg r}, {emit_addressing align addr i.arg 0}\n`;
     | Lop(Istore((Double | Double_u), addr, _)) -> 
         let addr' = offset_addressing addr 4 in
         begin
-          `	s32{emit_addressing_mode addr}	{emit_reg i.arg.(0)}, {emit_addressing addr i.arg 2}\n`;
-          `	s32{emit_addressing_mode addr'}	{emit_reg i.arg.(1)}, {emit_addressing addr' i.arg 2}\n`;
+          `	s32{emit_addressing_mode addr}	{emit_reg i.arg.(0)}, {emit_addressing 4 addr i.arg 2}\n`;
+          `	s32{emit_addressing_mode addr'}	{emit_reg i.arg.(1)}, {emit_addressing 4 addr' i.arg 2}\n`;
         end
     | Lop(Istore(size, addr, _)) -> 
         let r = i.arg.(0) in
-        let instr =
+        let instr, align =
           match size with
-            Byte_unsigned -> "s8"
-          | Byte_signed -> "s8"
-          | Sixteen_unsigned -> "s16"
-          | Sixteen_signed -> "s16"
-          | _ (* 32-bit quantities *) -> "s32" in
-        `	{emit_string instr}{emit_addressing_mode addr}	{emit_reg r}, {emit_addressing addr i.arg 1}\n`;
+            Byte_unsigned -> "s8", 1
+          | Byte_signed -> "s8", 1
+          | Sixteen_unsigned -> "s16", 2
+          | Sixteen_signed -> "s16", 2
+          | _ (* 32-bit quantities *) -> "s32", 4 in
+        `	{emit_string instr}{emit_addressing_mode addr}	{emit_reg r}, {emit_addressing align addr i.arg 1}\n`;
     | Lop(Ialloc { words = n; label_after_call_gc; }) ->
         let lbl_frame = 
           record_frame_label i.live false i.dbg ?label:label_after_call_gc
