@@ -17,8 +17,8 @@ open Mach
 
 let is_offset chunk n = match chunk with 
   | Byte_unsigned | Byte_signed -> n >= 0 && n <= 255
-  | Sixteen_unsigned | Sixteen_signed -> n >= 0 && n <= 510
-  | _ -> n >= 0 && n <= 1020
+  | Sixteen_unsigned | Sixteen_signed -> n >= 0 && n <= 510 && n mod 2 == 0
+  | _ -> n >= 0 && n <= 1020 && n mod 4 == 0
 
 
 class selector = object (self)
