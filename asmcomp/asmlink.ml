@@ -373,6 +373,7 @@ let link_whole_program ~ppf_dump ~backend units_to_link ~crc_interfaces =
     Format.fprintf ppf_dump "After cleaning:@ %a@."
       Flambda.print_program cleaned_program;
   let unit_prefix = Filename.temp_file "caml_link" "" in
+  Compilenv.reset "_whole_code_unit"; (* Cannot conflict with module names *)
   Asmgen.compile_implementation_flambda
     unit_prefix
     ~required_globals:Ident.Set.empty
