@@ -423,7 +423,7 @@ let link ~ppf_dump ~backend objfiles output_name =
       else Filename.temp_file "camlstartup" ext_asm in
     let startup_obj = Filename.temp_file "camlstartup" ext_obj in
     let removed_objects, objfiles, make_startup =
-      if !Clflags.cmx_contains_all_code && Config.flambda then
+      if !Clflags.whole_program_rebuild && Config.flambda then
         link_whole_program ~ppf_dump ~backend units_tolink ~crc_interfaces
       else
         [], List.map object_file_name objfiles, (fun () -> make_startup_file ~no_global_map:false ~ppf_dump units_tolink ~crc_interfaces)
