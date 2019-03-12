@@ -237,10 +237,11 @@ let make_startup_file ~ppf_dump ~no_global_map units_list ~crc_interfaces =
     (fun i name -> compile_phrase (Cmmgen.predef_exception i name))
     Runtimedef.builtin_exceptions;
   compile_phrase (Cmmgen.global_table name_list);
-  if not no_global_map then begin
-    let globals_map = make_globals_map units_list ~crc_interfaces in
-    compile_phrase (Cmmgen.globals_map globals_map)
-  end;
+  let globals_map =
+    if no_global_map then []
+    else make_globals_map units_list ~crc_interfaces
+  in
+  compile_phrase(Cmmgen.globals_map globals_map);
   compile_phrase(Cmmgen.data_segment_table ("_startup" :: name_list));
   compile_phrase(Cmmgen.code_segment_table ("_startup" :: name_list));
   let all_names = "_startup" :: "_system" :: name_list in
