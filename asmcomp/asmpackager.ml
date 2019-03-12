@@ -111,7 +111,7 @@ let make_package_object ppf members targetobj targetname coercion
           ~module_initializer:lam
       in
       Asmgen.compile_implementation_flambda
-        prefixname ~backend ~opaque:!Clflags.opaque
+        ~prefixname ~backend ~opaque:!Clflags.opaque ~whole_program:false
         ~required_globals:Ident.Set.empty ppf flam;
     end else begin
       let main_module_block_size, code =

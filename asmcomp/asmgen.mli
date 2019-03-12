@@ -17,7 +17,8 @@
 
 val compile_implementation_flambda :
     ?toplevel:(string -> bool) ->
-    string ->
+    prefixname:string ->
+    whole_program:bool ->
     opaque:bool ->
     required_globals:Ident.Set.t ->
     backend:(module Backend_intf.S) ->

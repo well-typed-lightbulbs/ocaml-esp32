@@ -196,14 +196,15 @@ let end_gen_implementation ?toplevel ppf
     );
   Emit.end_assembly ()
 
-let flambda_gen_implementation ?toplevel ~backend ~opaque ppf
+let flambda_gen_implementation ?toplevel ~backend
+    ~whole_program ~opaque ppf_dump
     (program:Flambda.program) =
   let export = Build_export_info.build_transient ~backend ~opaque program in
   let (clambda, preallocated, constants) =
     Profile.record_call "backend" (fun () ->
       (program, export)
-      ++ Flambda_to_clambda.convert
-      ++ flambda_raw_clambda_dump_if ppf
+      ++ Flambda_to_clambda.convert ~whole_program
+      ++ flambda_raw_clambda_dump_if ppf_dump
       ++ (fun { Flambda_to_clambda. expr; preallocated_blocks;
                 structured_constants; exported; } ->
              (* "init_code" following the name used in
@@ -219,10 +220,10 @@ let flambda_gen_implementation ?toplevel ~backend ~opaque ppf
           definition })
       (Symbol.Map.bindings constants)
   in
-  end_gen_implementation ?toplevel ppf
+  end_gen_implementation ?toplevel ppf_dump
     (clambda, preallocated, constants)
 
-let lambda_gen_implementation ?toplevel ppf
+let lambda_gen_implementation ?toplevel ppf_dump
     (lambda:Lambda.program) =
   let clambda = Closure.intro lambda.main_module_block_size lambda.code in
   let preallocated_block =
@@ -236,8 +237,8 @@ let lambda_gen_implementation ?toplevel ppf
   let clambda_and_constants =
     clambda, [preallocated_block], []
   in
-  raw_clambda_dump_if ppf clambda_and_constants;
-  end_gen_implementation ?toplevel ppf clambda_and_constants
+  raw_clambda_dump_if ppf_dump clambda_and_constants;
+  end_gen_implementation ?toplevel ppf_dump clambda_and_constants
 
 let compile_implementation_gen ?toplevel prefixname
     ~required_globals ppf gen_implementation program =
@@ -257,11 +258,13 @@ let compile_implementation_clambda ?toplevel prefixname
     ~required_globals:program.Lambda.required_globals
     ppf lambda_gen_implementation program
 
-let compile_implementation_flambda ?toplevel prefixname ~opaque
-    ~required_globals ~backend ppf (program:Flambda.program) =
+let compile_implementation_flambda ?toplevel ~prefixname
+    ~whole_program ~opaque
+    ~required_globals ~backend ppf_dump (program:Flambda.program) =
   compile_implementation_gen ?toplevel prefixname
-    ~required_globals ppf
-    (flambda_gen_implementation ~backend ~opaque) program
+    ~required_globals ppf_dump
+    (flambda_gen_implementation ~backend ~whole_program ~opaque)
+    program
 
 (* Error report *)
 
