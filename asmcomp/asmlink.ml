@@ -204,7 +204,7 @@ let scan_file obj_name tolink = match read_file obj_name with
 (* Second pass: generate the startup file and link it with everything else *)
 
 let force_linking_of_startup ppf =
-  Asmgen.compile_phrase ppf (Cmm.Cdata ([Cmm.Csymbol_address "caml_startup"]))
+  Asmgen.compile_phrase ppf (Cmm.Cdata ([Cmm.Csymbol_address "caml_startup"], Cmm.Read_only))
 
 let make_startup_file ppf units_list =
   let compile_phrase p = Asmgen.compile_phrase ppf p in
