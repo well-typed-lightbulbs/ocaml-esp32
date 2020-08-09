@@ -35,6 +35,12 @@ val compile_implementation
   -> Lambda.program
   -> unit
 
+val end_gen_implementation
+  : ?toplevel:(string -> bool)
+ -> ppf_dump:Format.formatter
+ -> Clambda.with_constants
+ -> unit
+
 val compile_phrase :
     ppf_dump:Format.formatter -> Cmm.phrase -> unit
 

@@ -374,6 +374,15 @@ let get_flambda_codes units_to_link =
 let copy_unit_info unit =
   { unit with ui_name = unit.Cmx_format.ui_name }
 
+let compile_implementation_flambda ~unit_prefix ~backend
+  ~ppf_dump (program : Flambda.program) =
+  Asmgen.compile_unit unit_prefix !Clflags.keep_asm_file (unit_prefix ^ ext_obj)
+  (fun () ->
+    let clambda_with_constants =
+      Flambda_middle_end.flambda_to_clambda ~backend ~ppf_dump program
+    in
+    Asmgen.end_gen_implementation ~ppf_dump clambda_with_constants)
+
 let link_whole_program ~backend ~ppf_dump ~crc_interfaces units_to_link =
   let codes = get_flambda_codes units_to_link in
   let program =
@@ -409,15 +418,9 @@ let link_whole_program ~backend ~ppf_dump ~crc_interfaces units_to_link =
     Format.fprintf ppf_dump "After cleaning:@ %a@."
       Flambda.print_program cleaned_program;
   Compilenv.reset "_link_";
-  let unit_prefix =
-    if !Clflags.keep_startup_file then
-      "link"
-    else
-      Filename.temp_file "caml_link" ""
-  in
-  Asmgen.compile_implementation_flambda
-    unit_prefix
-    ~required_globals:Ident.Set.empty
+  let unit_prefix = Filename.temp_file "caml_link" "" in
+  compile_implementation_flambda
+    ~unit_prefix
     ~backend
     ~ppf_dump
     cleaned_program;
@@ -442,7 +445,7 @@ let compile_startup_and_call_linker
     then output_name ^ ".startup" ^ ext_asm
     else Filename.temp_file "camlstartup" ext_asm in
   let startup_obj = Filename.temp_file "camlstartup" ext_obj in
-  Asmgen.compile_unit output_name
+  Asmgen.compile_unit
     startup !Clflags.keep_startup_file startup_obj
     make_startup;
   Misc.try_finally
