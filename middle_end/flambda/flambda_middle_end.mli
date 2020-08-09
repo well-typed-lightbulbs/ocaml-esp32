@@ -16,6 +16,13 @@
 
 [@@@ocaml.warning "+a-4-9-30-40-41-42"]
 
+(** Optimize Flambda code and produce Clambda. *)
+val flambda_to_clambda
+   : backend:(module Backend_intf.S)
+  -> ppf_dump:Format.formatter
+  -> Flambda.program
+  -> Clambda.with_constants
+
 (** Translate Lambda code to Flambda code, optimize it, and produce Clambda. *)
 
 val lambda_to_clambda
