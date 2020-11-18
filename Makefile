@@ -220,17 +220,6 @@ opt.opt: checknative
 	$(MAKE) runtime
 	$(MAKE) core
 	$(MAKE) ocaml
-	$(MAKE) opt-core
-	$(MAKE) ocamlc.opt
-	$(MAKE) otherlibraries $(WITH_DEBUGGER) $(WITH_OCAMLDOC) \
-	  $(WITH_OCAMLTEST)
-	$(MAKE) ocamlopt.opt
-	$(MAKE) otherlibrariesopt
-	$(MAKE) ocamllex.opt ocamltoolsopt ocamltoolsopt.opt $(OCAMLDOC_OPT) \
-	  $(OCAMLTEST_OPT)
-ifeq "$(WITH_OCAMLDOC)-$(STDLIB_MANPAGES)" "ocamldoc-true"
-	$(MAKE) manpages
-endif
 
 # Core bootstrapping cycle
 .PHONY: coreboot
@@ -406,7 +395,6 @@ ifeq "$(INSTALL_SOURCE_ARTIFACTS)" "true"
            toplevel/topdirs.mli \
 	   "$(INSTALL_LIBDIR)"
 endif
-	$(MAKE) -C tools install
 ifeq "$(UNIX_OR_WIN32)" "unix" # Install manual pages only on Unix
 	$(MKDIR) "$(INSTALL_MANDIR)/man$(PROGRAMS_MAN_SECTION)"
 	-$(MAKE) -C man install
@@ -512,7 +500,6 @@ ifeq "$(INSTALL_BYTECODE_PROGRAMS)" "true"
 else
 	if test -f ocamlopt.opt ; then $(MAKE) installoptopt; fi
 endif
-	$(MAKE) -C tools installopt
 	if test -f ocamlopt.opt -a -f flexdll/flexlink.opt ; then \
 	  $(INSTALL_PROG) \
 	    flexdll/flexlink.opt "$(INSTALL_BINDIR)/flexlink$(EXE)" ; \
