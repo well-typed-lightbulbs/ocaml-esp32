@@ -220,6 +220,7 @@ opt.opt: checknative
 	$(MAKE) runtime
 	$(MAKE) core
 	$(MAKE) ocaml
+	$(MAKE) opt-core
 
 # Core bootstrapping cycle
 .PHONY: coreboot
