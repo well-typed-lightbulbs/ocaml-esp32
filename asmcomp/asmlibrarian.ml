@@ -40,7 +40,7 @@ let read_info name =
   let export_info =
     match info.ui_export_info with
     | Flambda export_info ->
-        if !Clflags.cmx_contains_all_code then begin
+        if Config.cmx_contains_all_code then begin
           if export_info.Export_info.code = None then
             Location.prerr_warning Location.none
               (Warnings.Module_compiled_without_lto info.ui_name);

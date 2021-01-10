@@ -394,6 +394,10 @@ let link_whole_program ~backend ~ppf_dump ~crc_interfaces units_to_link =
       Flambda.print_program cleaned_program;
   Compilenv.reset "_link_";
   let unit_prefix = Filename.temp_file "caml_link" "" in
+  let program_body = 
+    let open Flambda in
+    Let_symbol (Compilenv.current_unit_symbol (), Block (Tag.create_exn 0, []), cleaned_program.program_body) in
+  let cleaned_program = { program with program_body } in
   compile_implementation_flambda
     ~unit_prefix
     ~backend
@@ -452,8 +456,8 @@ let link ~backend ~ppf_dump objfiles output_name =
     Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;
                                                  (* put user's opts first *)
     let removed_objects, object_files, make_startup =
-      if !Clflags.whole_program_rebuild && Config.flambda then
-        link_whole_program ~backend ~ppf_dump ~crc_interfaces units_tolink
+      if !Clflags.whole_program_rebuild && Config.flambda then (
+        link_whole_program ~backend ~ppf_dump ~crc_interfaces units_tolink)
       else
         [],
         List.map object_file_name objfiles,

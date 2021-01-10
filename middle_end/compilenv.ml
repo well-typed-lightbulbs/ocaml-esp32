@@ -350,7 +350,7 @@ let check_required_modules_are_compiled_with_lto () =
 (* Write the description of the current unit *)
 
 let write_unit_info info filename =
-  if Config.flambda && !Clflags.cmx_contains_all_code then
+  if Config.flambda && Config.cmx_contains_all_code then
     check_required_modules_are_compiled_with_lto ();
   let oc = open_out_bin filename in
   output_string oc cmx_magic_number;

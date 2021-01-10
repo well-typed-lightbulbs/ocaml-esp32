@@ -215,11 +215,11 @@ let build_package_cmx ~ppf_dump members cmxfile =
   let ui_export_info =
     if Config.flambda then
       let current_ui_export_info =
-        if !Clflags.cmx_contains_all_code then begin
+        if Config.cmx_contains_all_code then begin
           let codes = get_flambda_codes units in
           let current_unit_code =
             match (get_export_info ui).Export_info.code with
-            | None -> assert false (* We compiled with -lto *)
+            | None -> assert false (* We compiled with --enable-lto *)
             | Some code -> code
           in
           let program =

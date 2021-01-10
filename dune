@@ -184,7 +184,7 @@
 (executable
  (name optmain)
  (modes byte)
- (flags (:standard -principal -nostdlib))
+ (flags (:standard -cclib "-I runtime" -principal -nostdlib))
  (libraries ocamloptcomp ocamlmiddleend ocamlcommon runtime stdlib)
  (modules optmain))
 

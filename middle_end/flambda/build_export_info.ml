@@ -537,7 +537,7 @@ let build_transient ~(backend : (module Backend_intf.S))
     let compilation_unit = Compilenv.current_unit () in
     let root_symbol = Compilenv.current_unit_symbol () in
     let code =
-      if !Clflags.cmx_contains_all_code then
+      if Config.cmx_contains_all_code then
         Some program
       else
         None
@@ -725,7 +725,7 @@ let build_transient ~(backend : (module Backend_intf.S))
         symbol_id
     in
     let code =
-      if !Clflags.cmx_contains_all_code then
+      if Config.cmx_contains_all_code then
         Some program
       else
         None
