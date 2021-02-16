@@ -1192,7 +1192,7 @@ let emit_item = function
   | Calign n ->
       `	.align	{emit_int (Misc.log2 n)}\n`
 
-let data l =
+let data l _ro =
   emit_string data_space;
   `	.align  {emit_int (if ppc64 then 3 else 2)}\n`;
   List.iter emit_item l

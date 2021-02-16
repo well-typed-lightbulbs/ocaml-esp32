@@ -1,0 +1,8 @@
+path(esp32) = "%{prefix}%/esp32-sysroot/lib"
+destdir(esp32) = "%{prefix}%/esp32-sysroot/lib"
+stdlib(esp32) = "%{prefix}%/esp32-sysroot/lib/ocaml"
+ocamlopt(esp32) = "%{prefix}%/esp32-sysroot/bin/ocamlopt"
+ocamlc(esp32) = "%{prefix}%/esp32-sysroot/bin/ocamlc"
+ocamlmklib(esp32) = "%{prefix}%/esp32-sysroot/bin/ocamlmklib"
+ocamldep(esp32) = "%{prefix}%/esp32-sysroot/bin/ocamldep"
+ocamlcp(esp32) = "%{prefix}%/esp32-sysroot/bin/ocamlcp"

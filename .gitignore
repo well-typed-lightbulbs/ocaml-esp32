@@ -37,6 +37,7 @@ _ocamltestd
 *.odoc
 .merlin
 _build
+*.gch
 
 # local to root directory
 

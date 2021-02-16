@@ -413,11 +413,10 @@ opt.opt: checknative
 	$(MAKE) ocaml
 	$(MAKE) opt-core
 	$(MAKE) ocamlc.opt
-	$(MAKE) otherlibraries $(WITH_DEBUGGER) $(WITH_OCAMLDOC) ocamltest
+	$(MAKE) otherlibraries $(WITH_DEBUGGER) $(WITH_OCAMLDOC)
 	$(MAKE) ocamlopt.opt
 	$(MAKE) otherlibrariesopt
-	$(MAKE) ocamllex.opt ocamltoolsopt ocamltoolsopt.opt $(OCAMLDOC_OPT) \
-	  ocamltest.opt
+	$(MAKE) ocamllex.opt ocamltoolsopt ocamltoolsopt.opt $(OCAMLDOC_OPT)
 ifneq "$(WITH_OCAMLDOC)" ""
 	$(MAKE) manpages
 endif
@@ -447,7 +446,7 @@ coreboot:
 .PHONY: all
 all: coreall
 	$(MAKE) ocaml
-	$(MAKE) otherlibraries $(WITH_DEBUGGER) $(WITH_OCAMLDOC) ocamltest
+	$(MAKE) otherlibraries $(WITH_DEBUGGER) $(WITH_OCAMLDOC)
 ifneq "$(WITH_OCAMLDOC)" ""
 	$(MAKE) manpages
 endif
@@ -595,11 +594,11 @@ ifeq "$(INSTALL_SOURCE_ARTIFACTS)" "true"
            toplevel/topdirs.mli \
 	   "$(INSTALL_LIBDIR)"
 endif
-	$(MAKE) -C tools install
 ifeq "$(UNIX_OR_WIN32)" "unix" # Install manual pages only on Unix
 	$(MKDIR) "$(INSTALL_MANDIR)/man$(PROGRAMS_MAN_SECTION)"
 	-$(MAKE) -C man install
 endif
+	$(MAKE) -C tools install
 	for i in $(OTHERLIBRARIES); do \
 	  $(MAKE) -C otherlibs/$$i install || exit $$?; \
 	done

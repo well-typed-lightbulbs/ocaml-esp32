@@ -986,7 +986,7 @@ let emit_item = function
   | Cskip n -> if n > 0 then `	.space	{emit_int n}\n`
   | Calign n -> `	.align	{emit_int(Misc.log2 n)}\n`
 
-let data l =
+let data l _ro =
   `	.data\n`;
   `	.align 3\n`;
   List.iter emit_item l

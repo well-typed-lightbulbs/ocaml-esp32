@@ -1,0 +1,35 @@
+opam-version: "2.0"
+maintainer:   "Lucas Pluvinage <lucas.pluvinage@ens.fr>"
+authors: [
+    "Lucas PLuvinage"
+]
+homepage: "https://github.com/well-typed-lightbulbs/ocaml-esp32"
+bug-reports: "https://github.com/well-typed-lightbulbs/ocaml-esp32"
+substs: [ "esp32.conf" ]
+build: [
+    [ "./configure" 
+		"-host=xtensa-esp32-elf"
+		"-prefix" "%{prefix}%/esp32-sysroot"
+		"-disable-shared"
+		"-disable-systhreads"
+		"-disable-unix-lib"
+		"-disable-instrumented-runtime"
+        "-enable-flambda" "-enable-lto" ]
+    [ make "world" "-j8"]
+    [ make "opt" "-j8"]
+]
+install: [ 
+    [ make "install" ]
+    ["sh" "./esp32-install.sh" "%{prefix}%"]
+]
+remove: [
+    [ "rm" "-rf" "%{prefix}%/esp32-sysroot" ]
+]
+depends: [
+    "ocamlfind"
+  "ocaml" {>= "4.10" & < "4.12"}
+]
+synopsis: "OCaml for ESP32 chips"
+description: """
+OCaml for ESP32 chips
+"""

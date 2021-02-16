@@ -208,7 +208,7 @@ let scan_file obj_name tolink = match read_file obj_name with
 
 let force_linking_of_startup ~ppf_dump =
   Asmgen.compile_phrase ~ppf_dump
-    (Cmm.Cdata ([Cmm.Csymbol_address "caml_startup"]))
+    (Cmm.Cdata ([Cmm.Csymbol_address "caml_startup"], Cmm.Read_only))
 
 let make_globals_map units_list ~crc_interfaces =
   let crc_interfaces = String.Tbl.of_seq (List.to_seq crc_interfaces) in

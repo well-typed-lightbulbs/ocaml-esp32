@@ -464,6 +464,9 @@ AS_CASE([$ocaml_cv_cc_vendor],
 # Libraries to build depending on the host
 
 AS_CASE([$host],
+  [xtensa-*],
+    [unix_or_win32="freestanding"
+    unixlib=""],
   [*-*-mingw32|*-pc-windows],
     [unix_or_win32="win32"
     unixlib="win32unix"
@@ -475,7 +478,7 @@ AS_CASE([$host],
     [exeext=".exe"],
   [exeext=''])
 
-otherlibraries="dynlink"
+otherlibraries=""
 AS_IF([test x"$enable_unix_lib" != "xno"],
   [AS_IF([test x"$enable_bigarray_lib" != "xno"],
     [otherlibraries="$otherlibraries $unixlib bigarray"],
@@ -934,7 +937,9 @@ AS_CASE([$host],
   [aarch64-*-freebsd*],
     [arch=arm64; system=freebsd],
   [x86_64-*-cygwin*],
-    [arch=amd64; system=cygwin]
+    [arch=amd64; system=cygwin],
+  [xtensa-esp32-elf],
+    [arch=xtensa; model=esp32; system=freertos]
 )
 
 AS_IF([test x"$enable_native_compiler" = "xno"],
@@ -1022,7 +1027,12 @@ AS_CASE(["$arch,$system"],
       [clang-*], [default_as="${toolpref}clang -c -Wno-trigraphs"
                   default_aspp="${toolpref}clang -c -Wno-trigraphs"],
       [default_as="${toolpref}as"
-      default_aspp="${toolpref}gcc -c"])])
+      default_aspp="${toolpref}gcc -c"])],
+  [xtensa,*],
+    [
+      default_as="${toolpref}as --text-section-literals --longcalls"
+      default_aspp="${toolpref}gcc -c"
+    ])
 
 AS_IF([test "$with_pic"],
   [fpic=true
@@ -1112,20 +1122,20 @@ AS_CASE([$host],
 
 ## TODO: check whether the different libraries are really useful
 
-sockets=false
+sockets=true
 
 AS_CASE([$host],
   [*-*-mingw32|*-pc-windows],
-    [cclibs="$cclibs -lws2_32"
-    sockets=true],
+    [cclibs="$cclibs -lws2_32"],
+  [*-*-haiku],
+    [cclibs="$cclibs -lnetwork"],
+  [*-*-solaris*],
+    [cclibs="$cclibs -lsocket -lnsl"],
   [
-    AC_CHECK_FUNC([socket])
-    AC_CHECK_FUNC([socketpair])
-    AC_CHECK_FUNC([bind])
-    AC_CHECK_FUNC([listen])
-    AC_CHECK_FUNC([accept])
-    AC_CHECK_FUNC([connect])
-    sockets=true
+    AC_CHECK_FUNCS(
+      [socket socketpair bind listen accept connect],
+      [],
+      [sockets=false])
   ]
 )
 
@@ -1752,6 +1762,15 @@ ocamlc_cppflags="$common_cppflags"
 ocamlopt_cflags="$common_cflags"
 ocamlopt_cppflags="$common_cppflags"
 cclibs="$cclibs $mathlib"
+
+AS_CASE([$arch],
+  [xtensa],
+    [oc_cflags="-mlongcalls -O2 -fno-strict-aliasing -fwrapv -Wall -Wdeclaration-after-statement -fno-common -fexcess-precision=standard -fno-tree-vrp -ffunction-sections"
+    oc_cppflags="-D_FILE_OFFSET_BITS=64 -D_REENTRANT -DCAML_NAME_SPACE"
+    ocamlc_cflags="-mlongcalls -nostdlib -u call_user_start_cpu0 -Wl,--gc-sections -Wl,-static -Wl,--start-group -lgcc -lstdc++ -lgcov -Wl,--end-group -Wl,-EL"
+    ocamlc_cppflags="-Os -D_FILE_OFFSET_BITS=64 -D_REENTRANT"
+    ocamlopt_cflags="$ocamlc_cflags"
+    ocamlopt_cppflags="$ocamlc_cppflags"])
 
 AS_CASE([$host],
   [*-*-mingw32],

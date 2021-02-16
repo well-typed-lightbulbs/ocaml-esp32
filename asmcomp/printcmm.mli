@@ -26,5 +26,5 @@ val chunk : Cmm.memory_chunk -> string
 val operation : Debuginfo.t -> Cmm.operation -> string
 val expression : formatter -> Cmm.expression -> unit
 val fundecl : formatter -> Cmm.fundecl -> unit
-val data : formatter -> Cmm.data_item list -> unit
+val data : formatter -> Cmm.data_item list -> Cmm.access_mode -> unit
 val phrase : formatter -> Cmm.phrase -> unit

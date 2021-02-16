@@ -2,10 +2,8 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*             Xavier Leroy, projet Cristal, INRIA Rocquencourt           *)
+(*       Lucas Pluvinage, OCaml Labs intern, ENS Paris student            *)
 (*                                                                        *)
-(*   Copyright 1996 Institut National de Recherche en Informatique et     *)
-(*     en Automatique.                                                    *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -13,9 +11,15 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* Generation of assembly code *)
+(* CSE for the Xtensa Processor *)
 
-val fundecl: Linear.fundecl -> unit
-val data: Cmm.data_item list -> Cmm.access_mode -> unit
-val begin_assembly: unit -> unit
-val end_assembly: unit -> unit
+open CSEgen
+
+class cse = object
+
+inherit cse_generic as _super
+
+end
+
+let fundecl f =
+  (new cse)#fundecl f
